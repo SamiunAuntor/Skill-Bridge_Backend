@@ -1,0 +1,260 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+// ENUMS
+
+enum Role {
+  student
+  tutor
+  admin
+}
+
+enum BookingStatus {
+  confirmed
+  completed
+  cancelled
+  no_show
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+}
+
+enum SessionStatus {
+  ongoing
+  completed
+}
+
+enum VisibilityStatus {
+  public
+  private
+}
+
+// USER
+
+model User {
+  id            String   @id @default(uuid())
+  firstName     String
+  lastName      String
+  email         String   @unique
+  password      String?
+  role          Role
+
+  avatarUrl     String?
+  isBanned      Boolean  @default(false)
+  isVerified    Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  tutorProfile  TutorProfile?
+  bookings      Booking[] @relation("StudentBookings")
+  reviews       Review[]
+
+  @@index([email])
+}
+
+// TUTOR PROFILE
+
+model TutorProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+
+  bio                String
+  hourlyRate         Float
+  experienceYears    Int
+
+  totalHoursTaught   Float    @default(0)
+  totalEarnings      Float    @default(0)
+
+  averageRating      Float    @default(0)
+  totalReviews       Int      @default(0)
+
+  isTopRated         Boolean  @default(false)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  deletedAt          DateTime?
+
+  user               User @relation(fields: [userId], references: [id])
+
+  categories         TutorCategory[]
+  education          TutorEducation[]
+  expertise          TutorExpertise[]
+  availability       AvailabilitySlot[]
+  bookings           Booking[]
+  reviews            Review[]
+
+  @@index([hourlyRate])
+  @@index([averageRating])
+  @@index([isTopRated])
+}
+
+
+// CATEGORY
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+
+  tutors      TutorCategory[]
+}
+
+// TUTOR CATEGORY (M:N)
+
+model TutorCategory {
+  id          String @id @default(uuid())
+
+  tutorId     String
+  categoryId  String
+
+  tutor       TutorProfile @relation(fields: [tutorId], references: [id])
+  category    Category     @relation(fields: [categoryId], references: [id])
+
+  @@unique([tutorId, categoryId])
+}
+
+// TUTOR EDUCATION
+
+model TutorEducation {
+  id            String @id @default(uuid())
+
+  tutorId       String
+
+  degree        String
+  institution   String
+  fieldOfStudy  String
+  startYear     Int
+  endYear       Int?
+  description   String?
+
+  tutor         TutorProfile @relation(fields: [tutorId], references: [id])
+}
+
+// TUTOR EXPERTISE
+
+model TutorExpertise {
+  id        String @id @default(uuid())
+
+  tutorId   String
+  name      String
+  slug      String
+
+  tutor     TutorProfile @relation(fields: [tutorId], references: [id])
+}
+
+// AVAILABILITY
+
+model AvailabilitySlot {
+  id          String   @id @default(uuid())
+
+  tutorId     String
+
+  date        DateTime
+  startTime   DateTime
+  endTime     DateTime
+
+  isBooked    Boolean  @default(false)
+
+  recurringGroupId String?
+
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  tutor       TutorProfile @relation(fields: [tutorId], references: [id])
+  booking     Booking?
+
+  @@index([date, isBooked])
+}
+
+
+// BOOKING
+
+model Booking {
+  id             String   @id @default(uuid())
+
+  studentId      String
+  tutorId        String
+  slotId         String   @unique
+
+  status         BookingStatus
+
+  sessionDate    DateTime
+  startTime      DateTime
+  endTime        DateTime
+
+  priceAtBooking Float
+
+  paymentStatus  PaymentStatus @default(pending)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  student        User @relation("StudentBookings", fields: [studentId], references: [id])
+  tutor          TutorProfile @relation(fields: [tutorId], references: [id])
+  slot           AvailabilitySlot @relation(fields: [slotId], references: [id])
+
+  session        Session?
+  review         Review?
+
+  @@index([studentId])
+  @@index([tutorId])
+}
+
+// SESSION
+
+model Session {
+  id              String @id @default(uuid())
+
+  bookingId       String @unique
+
+  actualStartTime DateTime?
+  actualEndTime   DateTime?
+
+  durationHours   Float?
+
+  status          SessionStatus
+
+  createdAt       DateTime @default(now())
+
+  booking         Booking @relation(fields: [bookingId], references: [id])
+}
+
+// REVIEW
+
+model Review {
+  id          String @id @default(uuid())
+
+  bookingId   String @unique
+  studentId   String
+  tutorId     String
+
+  rating      Int
+  comment     String?
+
+  isVisible   Boolean @default(true)
+
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  booking     Booking @relation(fields: [bookingId], references: [id])
+  student     User @relation(fields: [studentId], references: [id])
+  tutor       TutorProfile @relation(fields: [tutorId], references: [id])
+}

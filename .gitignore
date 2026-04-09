@@ -10,10 +10,7 @@ build/
 
 # Environment variables
 .env
-.env.local
-.env.development
-.env.production
-.env.test
+.env.*
 
 # Logs
 logs/
@@ -37,3 +34,4 @@ prisma/generated/
 
 # Mac system files
 *.swp
+/src/generated/prisma
