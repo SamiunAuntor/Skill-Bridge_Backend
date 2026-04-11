@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { prisma } from "../config/prisma.config";
 import { env } from "../config/env";
+import { sendAuthEmail } from "./auth-email";
 
 function buildTrustedOrigins(): string[] {
     return [env.BETTER_AUTH_URL, env.FRONTEND_URL, env.BACKEND_URL].filter(
@@ -24,8 +25,32 @@ export const auth = betterAuth({
         updateAge: 60 * 60 * 24,
     },
 
+    user: {
+        additionalFields: {
+            role: {
+                type: ["student", "tutor", "admin"],
+                required: false,
+                defaultValue: "student",
+                input: true,
+            },
+        },
+    },
+
+    emailVerification: {
+        sendVerificationEmail: async ({ user, url }) => {
+            void sendAuthEmail("verification", user.email, url, user.name);
+        },
+        sendOnSignUp: true,
+        sendOnSignIn: true,
+        autoSignInAfterVerification: true,
+    },
+
     emailAndPassword: {
         enabled: true,
+        requireEmailVerification: true,
+        sendResetPassword: async ({ user, url }) => {
+            void sendAuthEmail("password_reset", user.email, url, user.name);
+        },
     },
 
     databaseHooks: {
