@@ -1,13 +1,23 @@
 import express from "express";
 import cors from "cors";
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "./auth/auth";
+import { env } from "./config/env";
 
 const app = express();
 
-// middlewares
-app.use(cors());
+app.use(
+    cors({
+        origin: env.FRONTEND_URL ?? true,
+        credentials: true,
+    })
+);
+
+// Better Auth reads the raw body; mount before express.json()
+app.all("/api/auth/{*any}", toNodeHandler(auth));
+
 app.use(express.json());
 
-// health check route
 app.get("/", (req, res) => {
     res.send("SkillBridge API running 🚀");
 });
