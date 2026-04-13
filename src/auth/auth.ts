@@ -27,6 +27,7 @@ export const auth = betterAuth({
 
     user: {
         additionalFields: {
+            /** Keep literals in sync with `auth.constants.ts` / Prisma `Role`. */
             role: {
                 type: ["student", "tutor", "admin"],
                 required: false,
@@ -74,3 +75,5 @@ export const auth = betterAuth({
         },
     },
 });
+
+export type SkillBridgeAuth = typeof auth;
