@@ -4,6 +4,7 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./auth/auth";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
+import availabilityRouter from "./modules/availability/availability.router";
 import tutorRouter from "./modules/tutor/tutor.router";
 import uploadRouter from "./modules/upload/upload.router";
 
@@ -20,6 +21,7 @@ app.use(
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.use(express.json());
+app.use("/api/availability", availabilityRouter);
 app.use("/api/tutors", tutorRouter);
 app.use("/api/uploads", uploadRouter);
 

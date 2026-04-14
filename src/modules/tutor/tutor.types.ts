@@ -107,9 +107,8 @@ export interface TutorDetailResponse {
         }>;
         availableSlots: Array<{
             id: string;
-            date: string;
-            startTime: string;
-            endTime: string;
+            startAt: string;
+            endAt: string;
         }>;
     };
 }

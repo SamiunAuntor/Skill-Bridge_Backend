@@ -100,7 +100,7 @@ function buildTutorWhereClause(
             some: {
                 isBooked: false,
                 deletedAt: null,
-                startTime: {
+                startAt: {
                     gte: new Date(),
                 },
             },
@@ -343,12 +343,12 @@ export async function getTutors(
                     where: {
                         isBooked: false,
                         deletedAt: null,
-                        startTime: {
+                        startAt: {
                             gte: now,
                         },
                     },
                     orderBy: {
-                        startTime: "asc",
+                        startAt: "asc",
                     },
                     take: 1,
                 },
@@ -382,7 +382,7 @@ export async function getTutors(
                 slug: item.slug,
             })),
             hasAvailability: tutor.availability.length > 0,
-            nextAvailableSlot: tutor.availability[0]?.startTime.toISOString() ?? null,
+            nextAvailableSlot: tutor.availability[0]?.startAt.toISOString() ?? null,
         })),
         pagination: {
             page: filters.page,
@@ -431,12 +431,12 @@ export async function getTutorById(
                 where: {
                     isBooked: false,
                     deletedAt: null,
-                    startTime: {
+                    startAt: {
                         gte: now,
                     },
                 },
                 orderBy: {
-                    startTime: "asc",
+                    startAt: "asc",
                 },
                 take: 30,
             },
@@ -508,9 +508,8 @@ export async function getTutorById(
             })),
             availableSlots: tutor.availability.map((slot) => ({
                 id: slot.id,
-                date: slot.date.toISOString(),
-                startTime: slot.startTime.toISOString(),
-                endTime: slot.endTime.toISOString(),
+                startAt: slot.startAt.toISOString(),
+                endAt: slot.endAt.toISOString(),
             })),
         },
     };

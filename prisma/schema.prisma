@@ -193,9 +193,8 @@ model AvailabilitySlot {
 
   tutorId String
 
-  date      DateTime
-  startTime DateTime
-  endTime   DateTime
+  startAt DateTime
+  endAt   DateTime
 
   isBooked Boolean @default(false)
 
@@ -208,7 +207,8 @@ model AvailabilitySlot {
   tutor   TutorProfile @relation(fields: [tutorId], references: [id])
   booking Booking?
 
-  @@index([date, isBooked])
+  @@index([startAt, isBooked])
+  @@index([tutorId, startAt])
 }
 
 // BOOKING
