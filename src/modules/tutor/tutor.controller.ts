@@ -1,7 +1,15 @@
 import { NextFunction, Request, Response } from "express";
+import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { HttpError } from "../../utils/http-error";
-import { getTutorById, getTutors, tutorDefaults } from "./tutor.services";
 import {
+    getMyTutorProfile,
+    getTutorById,
+    getTutors,
+    tutorDefaults,
+    updateMyTutorProfile,
+} from "./tutor.services";
+import {
+    TutorProfileUpdateInput,
     TutorListQuery,
     TutorSortOption,
     tutorSortOptions,
@@ -110,6 +118,157 @@ function buildTutorListQuery(query: Request["query"]): TutorListQuery {
     };
 }
 
+function parseRequiredString(value: unknown, fieldName: string): string {
+    if (typeof value !== "string" || value.trim().length === 0) {
+        throw new HttpError(400, `${fieldName} is required.`);
+    }
+
+    return value.trim();
+}
+
+function parseOptionalNullableString(value: unknown): string | null | undefined {
+    if (value == null) {
+        return undefined;
+    }
+
+    if (typeof value !== "string") {
+        throw new HttpError(400, "Invalid text field value.");
+    }
+
+    const normalizedValue = value.trim();
+    return normalizedValue.length > 0 ? normalizedValue : null;
+}
+
+function parseNonNegativeNumber(value: unknown, fieldName: string): number {
+    const parsedValue = Number(value);
+
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+        throw new HttpError(400, `${fieldName} must be a non-negative number.`);
+    }
+
+    return parsedValue;
+}
+
+function parseYear(value: unknown, fieldName: string): number {
+    const parsedValue = Number(value);
+
+    if (!Number.isInteger(parsedValue) || parsedValue < 1900 || parsedValue > 3000) {
+        throw new HttpError(400, `${fieldName} must be a valid year.`);
+    }
+
+    return parsedValue;
+}
+
+function buildTutorProfileUpdateInput(body: unknown): TutorProfileUpdateInput {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+        throw new HttpError(400, "Invalid tutor profile payload.");
+    }
+
+    const input = body as Record<string, unknown>;
+    const bio = typeof input.bio === "string" ? input.bio.trim() : "";
+    const hourlyRate = parseNonNegativeNumber(input.hourlyRate, "hourlyRate");
+    const experienceYears = parseNonNegativeNumber(
+        input.experienceYears,
+        "experienceYears"
+    );
+
+    if (!Array.isArray(input.categoryIds)) {
+        throw new HttpError(400, "categoryIds must be an array.");
+    }
+
+    const categoryIds = input.categoryIds.map((value, index) => {
+        if (typeof value !== "string" || value.trim().length === 0) {
+            throw new HttpError(
+                400,
+                `categoryIds[${index}] must be a valid category id.`
+            );
+        }
+
+        return value.trim();
+    });
+
+    if (!Array.isArray(input.expertise)) {
+        throw new HttpError(400, "expertise must be an array.");
+    }
+
+    const expertise = input.expertise.map((item, index) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+            throw new HttpError(400, `expertise[${index}] must be an object.`);
+        }
+
+        const expertiseInput = item as Record<string, unknown>;
+
+        return {
+            ...(typeof expertiseInput.id === "string" &&
+            expertiseInput.id.trim().length > 0
+                ? { id: expertiseInput.id.trim() }
+                : {}),
+            name: parseRequiredString(expertiseInput.name, `expertise[${index}].name`),
+        };
+    });
+
+    if (!Array.isArray(input.education)) {
+        throw new HttpError(400, "education must be an array.");
+    }
+
+    const education = input.education.map((item, index) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+            throw new HttpError(400, `education[${index}] must be an object.`);
+        }
+
+        const educationInput = item as Record<string, unknown>;
+        const startYear = parseYear(
+            educationInput.startYear,
+            `education[${index}].startYear`
+        );
+        const endYear =
+            educationInput.endYear == null || educationInput.endYear === ""
+                ? null
+                : parseYear(educationInput.endYear, `education[${index}].endYear`);
+
+        if (endYear !== null && startYear > endYear) {
+            throw new HttpError(
+                400,
+                `education[${index}].startYear cannot be greater than endYear.`
+            );
+        }
+
+        return {
+            ...(typeof educationInput.id === "string" &&
+            educationInput.id.trim().length > 0
+                ? { id: educationInput.id.trim() }
+                : {}),
+            degree: parseRequiredString(educationInput.degree, `education[${index}].degree`),
+            institution: parseRequiredString(
+                educationInput.institution,
+                `education[${index}].institution`
+            ),
+            fieldOfStudy:
+                typeof educationInput.fieldOfStudy === "string"
+                    ? educationInput.fieldOfStudy.trim()
+                    : "",
+            startYear,
+            ...(endYear !== null ? { endYear } : {}),
+            ...(parseOptionalNullableString(educationInput.description) !== undefined
+                ? {
+                      description: parseOptionalNullableString(
+                          educationInput.description
+                      ),
+                  }
+                : {}),
+        };
+    });
+
+    return {
+        bio,
+        hourlyRate,
+        experienceYears,
+        categoryIds,
+        expertise,
+        education,
+    };
+}
+
 export async function listTutors(
     req: Request,
     res: Response,
@@ -148,6 +307,51 @@ export async function getTutorDetails(
         res.status(200).json({
             success: true,
             message: "Tutor details fetched successfully.",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getMyTutorProfileController(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.authUser) {
+            throw new HttpError(401, "Unauthorized");
+        }
+
+        const result = await getMyTutorProfile(req.authUser.id);
+
+        res.status(200).json({
+            success: true,
+            message: "Tutor profile fetched successfully.",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function updateMyTutorProfileController(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.authUser) {
+            throw new HttpError(401, "Unauthorized");
+        }
+
+        const payload = buildTutorProfileUpdateInput(req.body);
+        const result = await updateMyTutorProfile(req.authUser.id, payload);
+
+        res.status(200).json({
+            success: true,
+            message: "Tutor profile updated successfully.",
             data: result,
         });
     } catch (error) {

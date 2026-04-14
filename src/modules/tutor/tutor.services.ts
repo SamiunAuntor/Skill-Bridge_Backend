@@ -3,8 +3,10 @@ import { prisma } from "../../config/prisma.config";
 import { HttpError } from "../../utils/http-error";
 import {
     TutorDetailResponse,
+    TutorEditableProfileResponse,
     TutorListQuery,
     TutorListResponse,
+    TutorProfileUpdateInput,
     TutorSortOption,
 } from "./tutor.types";
 
@@ -39,8 +41,11 @@ function getTutorOrderBy(
 function buildTutorWhereClause(
     filters: TutorListQuery
 ): Prisma.TutorProfileWhereInput {
+    const andClauses: Prisma.TutorProfileWhereInput[] = [];
+
     const where: Prisma.TutorProfileWhereInput = {
         deletedAt: null,
+        AND: andClauses,
         user: {
             isBanned: false,
             deletedAt: null,
@@ -49,24 +54,26 @@ function buildTutorWhereClause(
     };
 
     if (filters.subject) {
-        where.OR = [
-            {
-                categories: {
-                    some: {
-                        category: {
+        andClauses.push({
+            OR: [
+                {
+                    categories: {
+                        some: {
+                            category: {
+                                slug: filters.subject,
+                            },
+                        },
+                    },
+                },
+                {
+                    expertise: {
+                        some: {
                             slug: filters.subject,
                         },
                     },
                 },
-            },
-            {
-                expertise: {
-                    some: {
-                        slug: filters.subject,
-                    },
-                },
-            },
-        ];
+            ],
+        });
     }
 
     if (typeof filters.minPrice === "number" || typeof filters.maxPrice === "number") {
@@ -110,6 +117,39 @@ function toDisplayName(input: {
 }): string {
     const fullName = `${input.firstName ?? ""} ${input.lastName ?? ""}`.trim();
     return fullName || input.name.trim() || input.email;
+}
+
+function toPublicBio(bio: string): string {
+    const normalizedBio = bio.trim();
+    return normalizedBio || "This tutor is setting up their public profile.";
+}
+
+function slugifyExpertiseName(name: string): string {
+    return name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+function toEditableEducation(input: {
+    id: string;
+    degree: string;
+    institution: string;
+    fieldOfStudy: string;
+    startYear: number;
+    endYear: number | null;
+    description: string | null;
+}) {
+    return {
+        id: input.id,
+        degree: input.degree,
+        institution: input.institution,
+        fieldOfStudy: input.fieldOfStudy,
+        startYear: input.startYear,
+        endYear: input.endYear,
+        description: input.description,
+    };
 }
 
 export async function getTutors(
@@ -160,7 +200,7 @@ export async function getTutors(
             userId: tutor.userId,
             displayName: toDisplayName(tutor.user),
             avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
-            bio: tutor.bio,
+            bio: toPublicBio(tutor.bio),
             hourlyRate: tutor.hourlyRate,
             experienceYears: tutor.experienceYears,
             averageRating: tutor.averageRating,
@@ -198,13 +238,12 @@ export async function getTutorById(
 
     const tutor = await prisma.tutorProfile.findFirst({
         where: {
+            ...buildTutorWhereClause({
+                sortBy: "recommended",
+                page: 1,
+                limit: 1,
+            }),
             id: tutorId,
-            deletedAt: null,
-            user: {
-                isBanned: false,
-                deletedAt: null,
-                role: "tutor",
-            },
         },
         include: {
             user: true,
@@ -261,7 +300,7 @@ export async function getTutorById(
             displayName: toDisplayName(tutor.user),
             email: tutor.user.email,
             avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
-            bio: tutor.bio,
+            bio: toPublicBio(tutor.bio),
             hourlyRate: tutor.hourlyRate,
             experienceYears: tutor.experienceYears,
             totalHoursTaught: tutor.totalHoursTaught,
@@ -307,6 +346,244 @@ export async function getTutorById(
             })),
         },
     };
+}
+
+export async function getMyTutorProfile(
+    userId: string
+): Promise<TutorEditableProfileResponse> {
+    const [tutor, categories] = await Promise.all([
+        prisma.tutorProfile.findUnique({
+            where: { userId },
+            include: {
+                user: true,
+                categories: {
+                    include: {
+                        category: true,
+                    },
+                },
+                expertise: {
+                    orderBy: {
+                        name: "asc",
+                    },
+                },
+                education: {
+                    orderBy: [{ endYear: "desc" }, { startYear: "desc" }],
+                },
+            },
+        }),
+        prisma.category.findMany({
+            orderBy: {
+                name: "asc",
+            },
+        }),
+    ]);
+
+    if (!tutor || tutor.deletedAt) {
+        throw new HttpError(404, "Tutor profile not found.");
+    }
+
+    return {
+        profile: {
+            id: tutor.id,
+            userId: tutor.userId,
+            displayName: toDisplayName(tutor.user),
+            email: tutor.user.email,
+            avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
+            bio: tutor.bio,
+            hourlyRate: tutor.hourlyRate,
+            experienceYears: tutor.experienceYears,
+            categoryIds: tutor.categories.map(({ categoryId }) => categoryId),
+            expertise: tutor.expertise.map((item) => ({
+                id: item.id,
+                name: item.name,
+                slug: item.slug,
+            })),
+            education: tutor.education.map(toEditableEducation),
+        },
+        availableCategories: categories.map((category) => ({
+            id: category.id,
+            name: category.name,
+            slug: category.slug,
+        })),
+    };
+}
+
+export async function updateMyTutorProfile(
+    userId: string,
+    payload: TutorProfileUpdateInput
+): Promise<TutorEditableProfileResponse> {
+    const tutor = await prisma.tutorProfile.findUnique({
+        where: { userId },
+        select: {
+            id: true,
+            deletedAt: true,
+        },
+    });
+
+    if (!tutor || tutor.deletedAt) {
+        throw new HttpError(404, "Tutor profile not found.");
+    }
+
+    const uniqueCategoryIds = [...new Set(payload.categoryIds)];
+    const uniqueExpertise = Array.from(
+        new Map(
+            payload.expertise.map((item) => [
+                item.id?.trim() || `new:${slugifyExpertiseName(item.name)}`,
+                {
+                    ...item,
+                    name: item.name.trim(),
+                },
+            ])
+        ).values()
+    );
+    const normalizedEducation = payload.education.map((item) => ({
+        ...item,
+        degree: item.degree.trim(),
+        institution: item.institution.trim(),
+        fieldOfStudy: item.fieldOfStudy?.trim() ?? "",
+        description: item.description?.trim() || null,
+    }));
+
+    const validCategories = await prisma.category.findMany({
+        where: {
+            id: {
+                in: uniqueCategoryIds,
+            },
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (validCategories.length !== uniqueCategoryIds.length) {
+        throw new HttpError(400, "One or more selected categories are invalid.");
+    }
+
+    await prisma.$transaction(async (tx) => {
+        await tx.tutorProfile.update({
+            where: { id: tutor.id },
+            data: {
+                bio: payload.bio.trim(),
+                hourlyRate: payload.hourlyRate,
+                experienceYears: payload.experienceYears,
+            },
+        });
+
+        await tx.tutorCategory.deleteMany({
+            where: {
+                tutorId: tutor.id,
+                categoryId: {
+                    notIn: uniqueCategoryIds.length > 0 ? uniqueCategoryIds : [""],
+                },
+            },
+        });
+
+        if (uniqueCategoryIds.length > 0) {
+            await tx.tutorCategory.createMany({
+                data: uniqueCategoryIds.map((categoryId) => ({
+                    tutorId: tutor.id,
+                    categoryId,
+                })),
+                skipDuplicates: true,
+            });
+        } else {
+            await tx.tutorCategory.deleteMany({
+                where: {
+                    tutorId: tutor.id,
+                },
+            });
+        }
+
+        const existingExpertise = await tx.tutorExpertise.findMany({
+            where: { tutorId: tutor.id },
+            select: { id: true },
+        });
+        const keptExpertiseIds = uniqueExpertise
+            .map((item) => item.id?.trim())
+            .filter((value): value is string => Boolean(value));
+
+        await tx.tutorExpertise.deleteMany({
+            where: {
+                tutorId: tutor.id,
+                id: {
+                    notIn: keptExpertiseIds.length > 0 ? keptExpertiseIds : [""],
+                },
+            },
+        });
+
+        for (const expertise of uniqueExpertise) {
+            const slugBase = slugifyExpertiseName(expertise.name);
+            const slug = slugBase || `expertise-${Date.now()}`;
+
+            if (
+                expertise.id &&
+                existingExpertise.some((item) => item.id === expertise.id)
+            ) {
+                await tx.tutorExpertise.update({
+                    where: { id: expertise.id },
+                    data: {
+                        name: expertise.name,
+                        slug,
+                    },
+                });
+            } else {
+                await tx.tutorExpertise.create({
+                    data: {
+                        tutorId: tutor.id,
+                        name: expertise.name,
+                        slug,
+                    },
+                });
+            }
+        }
+
+        const existingEducation = await tx.tutorEducation.findMany({
+            where: { tutorId: tutor.id },
+            select: { id: true },
+        });
+        const keptEducationIds = normalizedEducation
+            .map((item) => item.id?.trim())
+            .filter((value): value is string => Boolean(value));
+
+        await tx.tutorEducation.deleteMany({
+            where: {
+                tutorId: tutor.id,
+                id: {
+                    notIn: keptEducationIds.length > 0 ? keptEducationIds : [""],
+                },
+            },
+        });
+
+        for (const educationItem of normalizedEducation) {
+            const data = {
+                degree: educationItem.degree,
+                institution: educationItem.institution,
+                fieldOfStudy: educationItem.fieldOfStudy,
+                startYear: educationItem.startYear,
+                endYear: educationItem.endYear ?? null,
+                description: educationItem.description,
+            };
+
+            if (
+                educationItem.id &&
+                existingEducation.some((item) => item.id === educationItem.id)
+            ) {
+                await tx.tutorEducation.update({
+                    where: { id: educationItem.id },
+                    data,
+                });
+            } else {
+                await tx.tutorEducation.create({
+                    data: {
+                        tutorId: tutor.id,
+                        ...data,
+                    },
+                });
+            }
+        }
+    });
+
+    return getMyTutorProfile(userId);
 }
 
 export const tutorDefaults = {

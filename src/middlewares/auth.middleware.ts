@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { getSessionCookie } from "better-auth/cookies";
-import { prisma } from "../config/prisma.config";
+import { fromNodeHeaders } from "better-auth/node";
+import { auth } from "../auth/auth";
 import type { AppUserRole } from "../auth/auth.constants";
+import { prisma } from "../config/prisma.config";
 
 export interface AuthenticatedRequest extends Request {
     authUser?: {
@@ -18,48 +19,35 @@ export async function requireAuth(
     res: Response,
     next: NextFunction
 ): Promise<void> {
-    const sessionToken = getSessionCookie(
-        {
-            headers: {
-                get(name: string) {
-                    return name.toLowerCase() === "cookie"
-                        ? req.headers.cookie ?? null
-                        : null;
-                },
-            },
-        } as any
-    );
-
-    if (!sessionToken) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-    }
-
-    const authSession = await prisma.authSession.findUnique({
-        where: { token: sessionToken },
-        include: { user: true },
+    const session = await auth.api.getSession({
+        headers: fromNodeHeaders(req.headers),
     });
 
-    if (
-        !authSession ||
-        !authSession.user ||
-        authSession.expiresAt <= new Date()
-    ) {
+    if (!session?.user) {
         res.status(401).json({ message: "Unauthorized" });
         return;
     }
 
-    if (authSession.user.isBanned) {
+    const user = await prisma.user.findUnique({
+        where: {
+            id: session.user.id,
+        },
+        select: {
+            isBanned: true,
+        },
+    });
+
+    if (!user || user.isBanned) {
         res.status(403).json({ message: "Forbidden" });
         return;
     }
 
     req.authUser = {
-        id: authSession.user.id,
-        role: authSession.user.role,
-        email: authSession.user.email,
-        name: authSession.user.name,
-        emailVerified: authSession.user.emailVerified,
+        id: session.user.id,
+        role: session.user.role as AppUserRole,
+        email: session.user.email,
+        name: session.user.name,
+        emailVerified: session.user.emailVerified,
     };
 
     next();

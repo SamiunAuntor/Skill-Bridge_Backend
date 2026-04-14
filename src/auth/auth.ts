@@ -10,6 +10,48 @@ function buildTrustedOrigins(): string[] {
     );
 }
 
+async function ensureTutorProfileForTutorRole(
+    user: {
+        id: string;
+        role?: unknown;
+    }
+): Promise<void> {
+    if (user.role !== "tutor") {
+        return;
+    }
+
+    await prisma.tutorProfile.upsert({
+        where: {
+            userId: user.id,
+        },
+        update: {},
+        create: {
+            userId: user.id,
+            bio: "",
+            hourlyRate: 0,
+            experienceYears: 0,
+        },
+    });
+}
+
+async function ensureTutorProfileByUserId(userId: string): Promise<void> {
+    const user = await prisma.user.findUnique({
+        where: {
+            id: userId,
+        },
+        select: {
+            id: true,
+            role: true,
+        },
+    });
+
+    if (!user) {
+        return;
+    }
+
+    await ensureTutorProfileForTutorRole(user);
+}
+
 export const auth = betterAuth({
     database: prismaAdapter(prisma, {
         provider: "postgresql",
@@ -70,6 +112,16 @@ export const auth = betterAuth({
                         data.lastName = last;
                     }
                     return { data };
+                },
+                after: async (user) => {
+                    await ensureTutorProfileForTutorRole(user);
+                },
+            },
+        },
+        session: {
+            create: {
+                after: async (session) => {
+                    await ensureTutorProfileByUserId(session.userId);
                 },
             },
         },

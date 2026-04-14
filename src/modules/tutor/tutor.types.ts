@@ -111,3 +111,68 @@ export interface TutorDetailResponse {
         }>;
     };
 }
+
+export interface TutorEditableCategoryOption {
+    id: string;
+    name: string;
+    slug: string;
+}
+
+export interface TutorEditableExpertiseItem {
+    id: string;
+    name: string;
+    slug: string;
+}
+
+export interface TutorEditableEducationItem {
+    id: string;
+    degree: string;
+    institution: string;
+    fieldOfStudy: string;
+    startYear: number;
+    endYear: number | null;
+    description: string | null;
+}
+
+export interface TutorEditableProfile {
+    id: string;
+    userId: string;
+    displayName: string;
+    email: string;
+    avatarUrl: string | null;
+    bio: string;
+    hourlyRate: number;
+    experienceYears: number;
+    categoryIds: string[];
+    expertise: TutorEditableExpertiseItem[];
+    education: TutorEditableEducationItem[];
+}
+
+export interface TutorEditableProfileResponse {
+    profile: TutorEditableProfile;
+    availableCategories: TutorEditableCategoryOption[];
+}
+
+export interface TutorProfileUpdateExpertiseInput {
+    id?: string;
+    name: string;
+}
+
+export interface TutorProfileUpdateEducationInput {
+    id?: string;
+    degree: string;
+    institution: string;
+    fieldOfStudy?: string | undefined;
+    startYear: number;
+    endYear?: number | null | undefined;
+    description?: string | null | undefined;
+}
+
+export interface TutorProfileUpdateInput {
+    bio: string;
+    hourlyRate: number;
+    experienceYears: number;
+    categoryIds: string[];
+    expertise: TutorProfileUpdateExpertiseInput[];
+    education: TutorProfileUpdateEducationInput[];
+}
