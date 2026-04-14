@@ -3,6 +3,8 @@ import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./auth/auth";
 import { env } from "./config/env";
+import { errorHandler } from "./middlewares/error.middleware";
+import tutorRouter from "./modules/tutor/tutor.router";
 
 const app = express();
 
@@ -17,9 +19,12 @@ app.use(
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.use(express.json());
+app.use("/api/tutors", tutorRouter);
 
 app.get("/", (req: Request, res: Response) => {
     res.send("SkillBridge API running 🚀");
 });
+
+app.use(errorHandler);
 
 export default app;
