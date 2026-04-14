@@ -389,6 +389,7 @@ export async function getMyTutorProfile(
             displayName: toDisplayName(tutor.user),
             email: tutor.user.email,
             avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
+            profileImageUrl: tutor.user.image ?? tutor.user.avatarUrl ?? null,
             bio: tutor.bio,
             hourlyRate: tutor.hourlyRate,
             experienceYears: tutor.experienceYears,
@@ -468,6 +469,15 @@ export async function updateMyTutorProfile(
                 experienceYears: payload.experienceYears,
             },
         });
+
+        if (payload.profileImageUrl !== undefined) {
+            await tx.user.update({
+                where: { id: userId },
+                data: {
+                    image: payload.profileImageUrl,
+                },
+            });
+        }
 
         await tx.tutorCategory.deleteMany({
             where: {

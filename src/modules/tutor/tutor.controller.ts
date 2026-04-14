@@ -139,6 +139,31 @@ function parseOptionalNullableString(value: unknown): string | null | undefined 
     return normalizedValue.length > 0 ? normalizedValue : null;
 }
 
+function parseOptionalHttpsUrl(value: unknown, fieldName: string): string | null | undefined {
+    if (value == null) {
+        return undefined;
+    }
+
+    if (typeof value !== "string") {
+        throw new HttpError(400, `${fieldName} must be a valid URL.`);
+    }
+
+    const normalizedValue = value.trim();
+    if (!normalizedValue) {
+        return null;
+    }
+
+    try {
+        const url = new URL(normalizedValue);
+        if (!["http:", "https:"].includes(url.protocol)) {
+            throw new Error("invalid protocol");
+        }
+        return normalizedValue;
+    } catch {
+        throw new HttpError(400, `${fieldName} must be a valid URL.`);
+    }
+}
+
 function parseNonNegativeNumber(value: unknown, fieldName: string): number {
     const parsedValue = Number(value);
 
@@ -165,6 +190,10 @@ function buildTutorProfileUpdateInput(body: unknown): TutorProfileUpdateInput {
     }
 
     const input = body as Record<string, unknown>;
+    const profileImageUrl = parseOptionalHttpsUrl(
+        input.profileImageUrl,
+        "profileImageUrl"
+    );
     const bio = typeof input.bio === "string" ? input.bio.trim() : "";
     const hourlyRate = parseNonNegativeNumber(input.hourlyRate, "hourlyRate");
     const experienceYears = parseNonNegativeNumber(
@@ -260,6 +289,7 @@ function buildTutorProfileUpdateInput(body: unknown): TutorProfileUpdateInput {
     });
 
     return {
+        ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
         bio,
         hourlyRate,
         experienceYears,

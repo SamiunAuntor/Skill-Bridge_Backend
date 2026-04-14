@@ -5,6 +5,7 @@ import { auth } from "./auth/auth";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
 import tutorRouter from "./modules/tutor/tutor.router";
+import uploadRouter from "./modules/upload/upload.router";
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.use(express.json());
 app.use("/api/tutors", tutorRouter);
+app.use("/api/uploads", uploadRouter);
 
 app.get("/", (req: Request, res: Response) => {
     res.send("SkillBridge API running 🚀");
