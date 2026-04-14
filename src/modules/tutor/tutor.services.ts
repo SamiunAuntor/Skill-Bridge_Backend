@@ -12,7 +12,7 @@ import {
 } from "./tutor.types";
 
 const defaultListPage = 1;
-const defaultListLimit = 9;
+const defaultListLimit = 10;
 
 function getTutorOrderBy(
     sortBy: TutorSortOption
@@ -776,18 +776,14 @@ export async function updateMyTutorProfile(
 }
 
 export async function getTutorSubjectOptions(): Promise<TutorSubjectOption[]> {
-    const categories = await prisma.category.findMany({
+    const expertiseItems = await prisma.tutorExpertise.findMany({
         where: {
-            tutors: {
-                some: {
-                    tutor: {
-                        deletedAt: null,
-                        user: {
-                            deletedAt: null,
-                            isBanned: false,
-                            role: "tutor",
-                        },
-                    },
+            tutor: {
+                deletedAt: null,
+                user: {
+                    deletedAt: null,
+                    isBanned: false,
+                    role: "tutor",
                 },
             },
         },
@@ -801,7 +797,19 @@ export async function getTutorSubjectOptions(): Promise<TutorSubjectOption[]> {
         },
     });
 
-    return categories;
+    const uniqueSubjects = new Map<string, TutorSubjectOption>();
+
+    for (const item of expertiseItems) {
+        if (!uniqueSubjects.has(item.slug)) {
+            uniqueSubjects.set(item.slug, {
+                id: item.id,
+                name: item.name,
+                slug: item.slug,
+            });
+        }
+    }
+
+    return [...uniqueSubjects.values()];
 }
 
 export const tutorDefaults = {

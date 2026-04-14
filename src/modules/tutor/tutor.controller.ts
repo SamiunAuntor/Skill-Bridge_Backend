@@ -241,6 +241,10 @@ function buildTutorProfileUpdateInput(body: unknown): TutorProfileUpdateInput {
         };
     });
 
+    if (expertise.length === 0) {
+        throw new HttpError(400, "At least one subject is required.");
+    }
+
     if (!Array.isArray(input.education)) {
         throw new HttpError(400, "education must be an array.");
     }
