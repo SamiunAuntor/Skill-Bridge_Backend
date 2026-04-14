@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from "../../middlewares/auth.middleware";
 import {
     getMyTutorProfileController,
     getTutorDetails,
+    listTutorSubjectOptions,
     listTutors,
     updateMyTutorProfileController,
 } from "./tutor.controller";
@@ -21,6 +22,7 @@ tutorRouter.put(
     requireRole("tutor"),
     updateMyTutorProfileController
 );
+tutorRouter.get("/subjects", listTutorSubjectOptions);
 tutorRouter.get("/", listTutors);
 tutorRouter.get("/:id", getTutorDetails);
 

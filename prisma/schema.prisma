@@ -101,6 +101,7 @@ model TutorProfile {
   id     String @id @default(uuid())
   userId String @unique
 
+  professionalTitle String @default("")
   bio             String @default("")
   hourlyRate      Float  @default(0)
   experienceYears Int    @default(0)

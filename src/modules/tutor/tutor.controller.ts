@@ -4,6 +4,7 @@ import { HttpError } from "../../utils/http-error";
 import {
     getMyTutorProfile,
     getTutorById,
+    getTutorSubjectOptions,
     getTutors,
     tutorDefaults,
     updateMyTutorProfile,
@@ -194,6 +195,10 @@ function buildTutorProfileUpdateInput(body: unknown): TutorProfileUpdateInput {
         input.profileImageUrl,
         "profileImageUrl"
     );
+    const professionalTitle =
+        typeof input.professionalTitle === "string"
+            ? input.professionalTitle.trim()
+            : "";
     const bio = typeof input.bio === "string" ? input.bio.trim() : "";
     const hourlyRate = parseNonNegativeNumber(input.hourlyRate, "hourlyRate");
     const experienceYears = parseNonNegativeNumber(
@@ -290,6 +295,7 @@ function buildTutorProfileUpdateInput(body: unknown): TutorProfileUpdateInput {
 
     return {
         ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
+        professionalTitle,
         bio,
         hourlyRate,
         experienceYears,
@@ -337,6 +343,24 @@ export async function getTutorDetails(
         res.status(200).json({
             success: true,
             message: "Tutor details fetched successfully.",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function listTutorSubjectOptions(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const result = await getTutorSubjectOptions();
+
+        res.status(200).json({
+            success: true,
+            message: "Tutor subject options fetched successfully.",
             data: result,
         });
     } catch (error) {

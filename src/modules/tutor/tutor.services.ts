@@ -6,6 +6,7 @@ import {
     TutorEditableProfileResponse,
     TutorListQuery,
     TutorListResponse,
+    TutorSubjectOption,
     TutorProfileUpdateInput,
     TutorSortOption,
 } from "./tutor.types";
@@ -116,12 +117,20 @@ function toDisplayName(input: {
     email: string;
 }): string {
     const fullName = `${input.firstName ?? ""} ${input.lastName ?? ""}`.trim();
-    return fullName || input.name.trim() || input.email;
+    return fullName || normalizeText(input.name) || input.email;
 }
 
-function toPublicBio(bio: string): string {
-    const normalizedBio = bio.trim();
+function normalizeText(value: unknown): string {
+    return typeof value === "string" ? value.trim() : "";
+}
+
+function toPublicBio(bio: unknown): string {
+    const normalizedBio = normalizeText(bio);
     return normalizedBio || "This tutor is setting up their public profile.";
+}
+
+function toProfessionalTitle(value: unknown): string {
+    return normalizeText(value) || "Professional Tutor";
 }
 
 function slugifyExpertiseName(name: string): string {
@@ -130,6 +139,159 @@ function slugifyExpertiseName(name: string): string {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
+}
+
+type TutorStatsSnapshot = {
+    averageRating: number;
+    totalReviews: number;
+    totalHoursTaught: number;
+    isTopRated: boolean;
+};
+
+async function syncTutorProfileStats(targetTutorId?: string): Promise<void> {
+    const tutors = await prisma.tutorProfile.findMany({
+        where: {
+            deletedAt: null,
+            ...(targetTutorId ? { id: targetTutorId } : {}),
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (tutors.length === 0) {
+        return;
+    }
+
+    const tutorIds = tutors.map((tutor) => tutor.id);
+
+    const [reviews, completedSessions] = await Promise.all([
+        prisma.review.findMany({
+            where: {
+                tutorId: {
+                    in: tutorIds,
+                },
+                deletedAt: null,
+            },
+            select: {
+                tutorId: true,
+                rating: true,
+            },
+        }),
+        prisma.session.findMany({
+            where: {
+                status: "completed",
+                booking: {
+                    tutorId: {
+                        in: tutorIds,
+                    },
+                    deletedAt: null,
+                },
+            },
+            select: {
+                durationHours: true,
+                booking: {
+                    select: {
+                        tutorId: true,
+                        startTime: true,
+                        endTime: true,
+                    },
+                },
+            },
+        }),
+    ]);
+
+    const statsByTutor = new Map<string, TutorStatsSnapshot>();
+
+    for (const tutorId of tutorIds) {
+        statsByTutor.set(tutorId, {
+            averageRating: 0,
+            totalReviews: 0,
+            totalHoursTaught: 0,
+            isTopRated: false,
+        });
+    }
+
+    const reviewAccumulator = new Map<
+        string,
+        { totalRating: number; totalReviews: number }
+    >();
+
+    for (const review of reviews) {
+        const current = reviewAccumulator.get(review.tutorId) ?? {
+            totalRating: 0,
+            totalReviews: 0,
+        };
+
+        current.totalRating += review.rating;
+        current.totalReviews += 1;
+        reviewAccumulator.set(review.tutorId, current);
+    }
+
+    for (const [tutorId, aggregate] of reviewAccumulator.entries()) {
+        const snapshot = statsByTutor.get(tutorId);
+        if (!snapshot) {
+            continue;
+        }
+
+        snapshot.totalReviews = aggregate.totalReviews;
+        snapshot.averageRating =
+            aggregate.totalReviews > 0
+                ? Number((aggregate.totalRating / aggregate.totalReviews).toFixed(2))
+                : 0;
+    }
+
+    for (const session of completedSessions) {
+        const tutorId = session.booking.tutorId;
+        const snapshot = statsByTutor.get(tutorId);
+        if (!snapshot) {
+            continue;
+        }
+
+        const durationHours =
+            typeof session.durationHours === "number"
+                ? session.durationHours
+                : (session.booking.endTime.getTime() -
+                      session.booking.startTime.getTime()) /
+                  (1000 * 60 * 60);
+
+        snapshot.totalHoursTaught += Math.max(durationHours, 0);
+    }
+
+    const rankedTutors = [...statsByTutor.entries()]
+        .filter(([, snapshot]) => snapshot.totalReviews > 0)
+        .sort((left, right) => {
+            if (right[1].averageRating !== left[1].averageRating) {
+                return right[1].averageRating - left[1].averageRating;
+            }
+
+            return right[1].totalReviews - left[1].totalReviews;
+        })
+        .slice(0, 10)
+        .map(([tutorId]) => tutorId);
+
+    const topRatedIds = new Set(rankedTutors);
+
+    for (const [tutorId, snapshot] of statsByTutor.entries()) {
+        snapshot.totalHoursTaught = Number(snapshot.totalHoursTaught.toFixed(2));
+        snapshot.isTopRated =
+            snapshot.averageRating >= 4.5 ||
+            (snapshot.totalReviews > 0 && topRatedIds.has(tutorId));
+    }
+
+    await prisma.$transaction(
+        [...statsByTutor.entries()].map(([tutorId, snapshot]) =>
+            prisma.tutorProfile.update({
+                where: { id: tutorId },
+                data: {
+                    averageRating: snapshot.averageRating,
+                    totalReviews: snapshot.totalReviews,
+                    totalHoursTaught: snapshot.totalHoursTaught,
+                    isTopRated: snapshot.isTopRated,
+                },
+            })
+        )
+    );
 }
 
 function toEditableEducation(input: {
@@ -155,6 +317,8 @@ function toEditableEducation(input: {
 export async function getTutors(
     filters: TutorListQuery
 ): Promise<TutorListResponse> {
+    await syncTutorProfileStats();
+
     const skip = (filters.page - defaultListPage) * filters.limit;
     const where = buildTutorWhereClause(filters);
     const orderBy = getTutorOrderBy(filters.sortBy);
@@ -199,6 +363,7 @@ export async function getTutors(
             id: tutor.id,
             userId: tutor.userId,
             displayName: toDisplayName(tutor.user),
+            professionalTitle: toProfessionalTitle(tutor.professionalTitle),
             avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
             bio: toPublicBio(tutor.bio),
             hourlyRate: tutor.hourlyRate,
@@ -234,6 +399,8 @@ export async function getTutors(
 export async function getTutorById(
     tutorId: string
 ): Promise<TutorDetailResponse> {
+    await syncTutorProfileStats(tutorId);
+
     const now = new Date();
 
     const tutor = await prisma.tutorProfile.findFirst({
@@ -298,6 +465,7 @@ export async function getTutorById(
             id: tutor.id,
             userId: tutor.userId,
             displayName: toDisplayName(tutor.user),
+            professionalTitle: toProfessionalTitle(tutor.professionalTitle),
             email: tutor.user.email,
             avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
             bio: toPublicBio(tutor.bio),
@@ -390,6 +558,7 @@ export async function getMyTutorProfile(
             email: tutor.user.email,
             avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
             profileImageUrl: tutor.user.image ?? tutor.user.avatarUrl ?? null,
+            professionalTitle: toProfessionalTitle(tutor.professionalTitle),
             bio: tutor.bio,
             hourlyRate: tutor.hourlyRate,
             experienceYears: tutor.experienceYears,
@@ -460,10 +629,33 @@ export async function updateMyTutorProfile(
         throw new HttpError(400, "One or more selected categories are invalid.");
     }
 
+    const [existingExpertise, existingEducation] = await Promise.all([
+        prisma.tutorExpertise.findMany({
+            where: { tutorId: tutor.id },
+            select: { id: true },
+        }),
+        prisma.tutorEducation.findMany({
+            where: { tutorId: tutor.id },
+            select: { id: true },
+        }),
+    ]);
+
+    const existingExpertiseIds = new Set(existingExpertise.map((item) => item.id));
+    const existingEducationIds = new Set(existingEducation.map((item) => item.id));
+
+    const keptExpertiseIds = uniqueExpertise
+        .map((item) => item.id?.trim())
+        .filter((value): value is string => Boolean(value));
+
+    const keptEducationIds = normalizedEducation
+        .map((item) => item.id?.trim())
+        .filter((value): value is string => Boolean(value));
+
     await prisma.$transaction(async (tx) => {
         await tx.tutorProfile.update({
             where: { id: tutor.id },
             data: {
+                professionalTitle: payload.professionalTitle.trim(),
                 bio: payload.bio.trim(),
                 hourlyRate: payload.hourlyRate,
                 experienceYears: payload.experienceYears,
@@ -504,14 +696,6 @@ export async function updateMyTutorProfile(
             });
         }
 
-        const existingExpertise = await tx.tutorExpertise.findMany({
-            where: { tutorId: tutor.id },
-            select: { id: true },
-        });
-        const keptExpertiseIds = uniqueExpertise
-            .map((item) => item.id?.trim())
-            .filter((value): value is string => Boolean(value));
-
         await tx.tutorExpertise.deleteMany({
             where: {
                 tutorId: tutor.id,
@@ -527,7 +711,7 @@ export async function updateMyTutorProfile(
 
             if (
                 expertise.id &&
-                existingExpertise.some((item) => item.id === expertise.id)
+                existingExpertiseIds.has(expertise.id)
             ) {
                 await tx.tutorExpertise.update({
                     where: { id: expertise.id },
@@ -546,14 +730,6 @@ export async function updateMyTutorProfile(
                 });
             }
         }
-
-        const existingEducation = await tx.tutorEducation.findMany({
-            where: { tutorId: tutor.id },
-            select: { id: true },
-        });
-        const keptEducationIds = normalizedEducation
-            .map((item) => item.id?.trim())
-            .filter((value): value is string => Boolean(value));
 
         await tx.tutorEducation.deleteMany({
             where: {
@@ -576,7 +752,7 @@ export async function updateMyTutorProfile(
 
             if (
                 educationItem.id &&
-                existingEducation.some((item) => item.id === educationItem.id)
+                existingEducationIds.has(educationItem.id)
             ) {
                 await tx.tutorEducation.update({
                     where: { id: educationItem.id },
@@ -591,9 +767,41 @@ export async function updateMyTutorProfile(
                 });
             }
         }
+    }, {
+        maxWait: 10000,
+        timeout: 20000,
     });
 
     return getMyTutorProfile(userId);
+}
+
+export async function getTutorSubjectOptions(): Promise<TutorSubjectOption[]> {
+    const categories = await prisma.category.findMany({
+        where: {
+            tutors: {
+                some: {
+                    tutor: {
+                        deletedAt: null,
+                        user: {
+                            deletedAt: null,
+                            isBanned: false,
+                            role: "tutor",
+                        },
+                    },
+                },
+            },
+        },
+        orderBy: {
+            name: "asc",
+        },
+        select: {
+            id: true,
+            name: true,
+            slug: true,
+        },
+    });
+
+    return categories;
 }
 
 export const tutorDefaults = {
