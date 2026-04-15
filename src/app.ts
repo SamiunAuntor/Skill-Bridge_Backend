@@ -5,6 +5,7 @@ import { auth } from "./auth/auth";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
 import availabilityRouter from "./modules/availability/availability.router";
+import bookingRouter from "./modules/booking/booking.router";
 import tutorRouter from "./modules/tutor/tutor.router";
 import uploadRouter from "./modules/upload/upload.router";
 
@@ -22,6 +23,7 @@ app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.use(express.json());
 app.use("/api/availability", availabilityRouter);
+app.use("/api/bookings", bookingRouter);
 app.use("/api/tutors", tutorRouter);
 app.use("/api/uploads", uploadRouter);
 
