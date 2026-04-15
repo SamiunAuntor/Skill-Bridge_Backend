@@ -148,7 +148,7 @@ type TutorStatsSnapshot = {
     isTopRated: boolean;
 };
 
-async function syncTutorProfileStats(targetTutorId?: string): Promise<void> {
+export async function syncTutorProfileStats(targetTutorId?: string): Promise<void> {
     const tutors = await prisma.tutorProfile.findMany({
         where: {
             deletedAt: null,
@@ -172,6 +172,7 @@ async function syncTutorProfileStats(targetTutorId?: string): Promise<void> {
                     in: tutorIds,
                 },
                 deletedAt: null,
+                isVisible: true,
             },
             select: {
                 tutorId: true,

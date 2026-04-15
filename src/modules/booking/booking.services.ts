@@ -69,6 +69,7 @@ function normalizeDisplayName(input: {
 function mapSessionListItem(input: {
     bookingId: string;
     sessionId: string;
+    reviewId: string | null;
     bookingStatus: BookingStatus;
     sessionStatus: SessionStatus;
     sessionDate: Date;
@@ -106,6 +107,7 @@ function mapSessionListItem(input: {
     return {
         bookingId: input.bookingId,
         sessionId: input.sessionId,
+        reviewId: input.reviewId,
         bookingStatus: input.bookingStatus,
         sessionStatus: input.sessionStatus,
         sessionDate: input.sessionDate.toISOString(),
@@ -126,6 +128,7 @@ function mapSessionListItem(input: {
         meetingId: input.meetingId,
         meetingJoinUrl: input.meetingJoinUrl,
         meetingPassword: input.meetingPassword,
+        canLeaveReview: input.sessionStatus === SessionStatus.completed && !input.reviewId,
         student: {
             id: input.student.id,
             name: normalizeDisplayName(input.student),
@@ -704,6 +707,11 @@ export async function getMySessions(
                     meetingPassword: true,
                 },
             },
+            review: {
+                select: {
+                    id: true,
+                },
+            },
         },
     });
 
@@ -747,6 +755,7 @@ export async function getMySessions(
                 mapSessionListItem({
                     bookingId: item.id,
                     sessionId: item.session.id,
+                    reviewId: item.review?.id ?? null,
                     bookingStatus: item.status,
                     sessionStatus: item.session.status,
                     sessionDate: item.sessionDate,
@@ -860,6 +869,11 @@ export async function getTutorDashboardSummary(
                         meetingPassword: true,
                     },
                 },
+                review: {
+                    select: {
+                        id: true,
+                    },
+                },
             },
         }),
     ]);
@@ -890,6 +904,7 @@ export async function getTutorDashboardSummary(
                 mapSessionListItem({
                     bookingId: item.id,
                     sessionId: item.session.id,
+                    reviewId: item.review?.id ?? null,
                     bookingStatus: item.status,
                     sessionStatus: item.session.status,
                     sessionDate: item.sessionDate,
