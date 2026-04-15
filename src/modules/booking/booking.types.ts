@@ -50,8 +50,31 @@ export interface SessionListItem {
     };
 }
 
+export type SessionListSortOption =
+    | "time_asc"
+    | "time_desc"
+    | "amount_high"
+    | "amount_low"
+    | "upcoming_only"
+    | "completed_only"
+    | "cancelled_only";
+
+export interface SessionListQuery {
+    search?: string;
+    sortBy: SessionListSortOption;
+}
+
 export interface SessionListResponse {
     sessions: SessionListItem[];
+    stats: {
+        upcoming: number;
+        completed: number;
+        cancelled: number;
+    };
+    filters: {
+        search: string;
+        sortBy: SessionListSortOption;
+    };
 }
 
 export interface CancelBookingResponse {

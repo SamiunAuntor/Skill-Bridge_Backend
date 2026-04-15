@@ -206,6 +206,10 @@ function buildTutorProfileUpdateInput(body: unknown): TutorProfileUpdateInput {
         "experienceYears"
     );
 
+    if (bio.length > 0 && bio.length < 20) {
+        throw new HttpError(400, "bio must be at least 20 characters long.");
+    }
+
     if (!Array.isArray(input.categoryIds)) {
         throw new HttpError(400, "categoryIds must be an array.");
     }
