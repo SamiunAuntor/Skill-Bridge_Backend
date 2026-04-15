@@ -11,6 +11,11 @@ export interface CreateAvailabilityInput {
     endAt: Date;
 }
 
+export interface UpdateAvailabilityInput {
+    startAt: Date;
+    endAt: Date;
+}
+
 export interface AvailabilityListResponse {
     slots: AvailabilitySlotDto[];
 }

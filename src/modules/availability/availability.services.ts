@@ -4,6 +4,7 @@ import {
     AvailabilityListResponse,
     AvailabilitySlotDto,
     CreateAvailabilityInput,
+    UpdateAvailabilityInput,
 } from "./availability.types";
 
 function toSlotDto(input: {
@@ -38,12 +39,20 @@ async function getTutorProfileIdByUserId(userId: string): Promise<string> {
 async function assertNoOverlappingAvailability(
     tutorId: string,
     startAt: Date,
-    endAt: Date
+    endAt: Date,
+    excludeSlotId?: string
 ): Promise<void> {
     const overlappingSlot = await prisma.availabilitySlot.findFirst({
         where: {
             tutorId,
             deletedAt: null,
+            ...(excludeSlotId
+                ? {
+                      id: {
+                          not: excludeSlotId,
+                      },
+                  }
+                : {}),
             startAt: {
                 lt: endAt,
             },
@@ -110,6 +119,65 @@ export async function createAvailabilitySlot(
     });
 
     return toSlotDto(slot);
+}
+
+export async function updateAvailabilitySlot(
+    userId: string,
+    slotId: string,
+    input: UpdateAvailabilityInput
+): Promise<AvailabilitySlotDto> {
+    const tutorId = await getTutorProfileIdByUserId(userId);
+    const now = new Date();
+
+    if (input.startAt <= now || input.endAt <= now) {
+        throw new HttpError(400, "Availability slots must be in the future.");
+    }
+
+    if (input.startAt >= input.endAt) {
+        throw new HttpError(400, "startAt must be earlier than endAt.");
+    }
+
+    const slot = await prisma.availabilitySlot.findFirst({
+        where: {
+            id: slotId,
+            tutorId,
+            deletedAt: null,
+        },
+        select: {
+            id: true,
+            isBooked: true,
+            startAt: true,
+        },
+    });
+
+    if (!slot) {
+        throw new HttpError(404, "Availability slot not found.");
+    }
+
+    if (slot.isBooked) {
+        throw new HttpError(409, "Booked slots cannot be updated.");
+    }
+
+    if (slot.startAt <= now) {
+        throw new HttpError(400, "Past or active slots cannot be updated.");
+    }
+
+    await assertNoOverlappingAvailability(
+        tutorId,
+        input.startAt,
+        input.endAt,
+        slot.id
+    );
+
+    const updatedSlot = await prisma.availabilitySlot.update({
+        where: { id: slot.id },
+        data: {
+            startAt: input.startAt,
+            endAt: input.endAt,
+        },
+    });
+
+    return toSlotDto(updatedSlot);
 }
 
 export async function deleteAvailabilitySlot(

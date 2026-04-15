@@ -5,6 +5,7 @@ import {
     deleteAvailabilitySlotController,
     getMyAvailabilityController,
     getPublicTutorAvailabilityController,
+    updateAvailabilitySlotController,
 } from "./availability.controller";
 
 const availabilityRouter = Router();
@@ -26,6 +27,12 @@ availabilityRouter.delete(
     requireAuth,
     requireRole("tutor"),
     deleteAvailabilitySlotController
+);
+availabilityRouter.put(
+    "/me/:slotId",
+    requireAuth,
+    requireRole("tutor"),
+    updateAvailabilitySlotController
 );
 availabilityRouter.get("/tutor/:tutorId", getPublicTutorAvailabilityController);
 

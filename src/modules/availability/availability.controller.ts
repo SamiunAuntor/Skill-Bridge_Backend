@@ -6,6 +6,7 @@ import {
     deleteAvailabilitySlot,
     getMyAvailability,
     getPublicTutorAvailability,
+    updateAvailabilitySlot,
 } from "./availability.services";
 
 function parseIsoDateTime(value: unknown, fieldName: string): Date {
@@ -97,6 +98,43 @@ export async function deleteAvailabilitySlotController(
             success: true,
             message: "Availability slot deleted successfully.",
             data: null,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function updateAvailabilitySlotController(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.authUser) {
+            throw new HttpError(401, "Unauthorized");
+        }
+
+        const slotId =
+            typeof req.params.slotId === "string" ? req.params.slotId.trim() : "";
+
+        if (!slotId) {
+            throw new HttpError(400, "slotId is required.");
+        }
+
+        if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+            throw new HttpError(400, "Invalid availability payload.");
+        }
+
+        const body = req.body as Record<string, unknown>;
+        const result = await updateAvailabilitySlot(req.authUser.id, slotId, {
+            startAt: parseIsoDateTime(body.startAt, "startAt"),
+            endAt: parseIsoDateTime(body.endAt, "endAt"),
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Availability slot updated successfully.",
+            data: result,
         });
     } catch (error) {
         next(error);
