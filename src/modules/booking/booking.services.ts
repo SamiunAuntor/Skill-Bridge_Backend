@@ -11,6 +11,7 @@ import { prisma } from "../../config/prisma.config";
 import { sendMail } from "../../services/email";
 import { createZoomMeeting, deleteZoomMeeting } from "../../services/zoom/zoom.service";
 import { HttpError } from "../../utils/http-error";
+import { reconcileCompletedSessions } from "./booking.lifecycle";
 import {
     BookingConfirmationResponse,
     CancelBookingResponse,
@@ -405,11 +406,52 @@ export async function createBooking(
 
     const studentDisplayName = normalizeDisplayName(student);
     const tutorDisplayName = normalizeDisplayName(tutor.user);
-    const zoomMeeting = await createZoomMeeting({
-        topic: `SkillBridge Session: ${studentDisplayName} with ${tutorDisplayName}`,
-        startAt: bookingResult.booking.startTime,
-        endAt: bookingResult.booking.endTime,
-    });
+    let zoomMeeting: Awaited<ReturnType<typeof createZoomMeeting>> = null;
+
+    try {
+        zoomMeeting = await createZoomMeeting({
+            topic: `SkillBridge Session: ${studentDisplayName} with ${tutorDisplayName}`,
+            startAt: bookingResult.booking.startTime,
+            endAt: bookingResult.booking.endTime,
+        });
+    } catch (error) {
+        await prisma.$transaction(
+            async (tx) => {
+                await tx.notification.deleteMany({
+                    where: {
+                        bookingId: bookingResult.booking.id,
+                    },
+                });
+
+                await tx.session.deleteMany({
+                    where: {
+                        bookingId: bookingResult.booking.id,
+                    },
+                });
+
+                await tx.booking.delete({
+                    where: {
+                        id: bookingResult.booking.id,
+                    },
+                });
+
+                await tx.availabilitySlot.update({
+                    where: {
+                        id: bookingResult.booking.slotId,
+                    },
+                    data: {
+                        isBooked: false,
+                    },
+                });
+            },
+            {
+                maxWait: 10000,
+                timeout: 20000,
+            }
+        );
+
+        throw error;
+    }
 
     if (zoomMeeting) {
         await prisma.session.update({
@@ -457,6 +499,8 @@ export async function getMySessions(
     userId: string,
     role: "student" | "tutor" | "admin"
 ): Promise<SessionListResponse> {
+    await reconcileCompletedSessions();
+
     if (role !== Role.student && role !== Role.tutor) {
         throw new HttpError(403, "Sessions are only available for tutors and students.");
     }
