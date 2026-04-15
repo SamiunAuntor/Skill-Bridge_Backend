@@ -1,6 +1,6 @@
 import app from "./app";
 import { env } from "./config/env";
-import { startBookingLifecycleWorker } from "./modules/booking/booking.lifecycle";
+import { startNotificationCron } from "./jobs/notification.cron";
 import { isMailConfigured } from "./services/email";
 
 app.listen(env.PORT, () => {
@@ -16,6 +16,6 @@ app.listen(env.PORT, () => {
         );
     }
 
-    startBookingLifecycleWorker();
-    console.log("[booking-lifecycle] worker started.");
+    startNotificationCron();
+    console.log("[notification-cron] worker started.");
 });

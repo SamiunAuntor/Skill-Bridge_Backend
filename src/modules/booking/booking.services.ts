@@ -8,10 +8,8 @@ import {
     SessionStatus,
 } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
-import { sendMail } from "../../services/email";
 import { createZoomMeeting, deleteZoomMeeting } from "../../services/zoom/zoom.service";
 import { HttpError } from "../../utils/http-error";
-import { reconcileCompletedSessions } from "./booking.lifecycle";
 import {
     BookingConfirmationResponse,
     CancelBookingResponse,
@@ -135,39 +133,6 @@ function mapSessionListItem(input: {
             avatarUrl: input.tutor.user.image || input.tutor.user.avatarUrl,
         },
     };
-}
-
-async function sendNotificationEmail(params: {
-    notificationId: string;
-    to: string;
-    subject: string;
-    text: string;
-}): Promise<void> {
-    try {
-        await sendMail({
-            to: params.to,
-            subject: params.subject,
-            text: params.text,
-            context: "notifications:booking",
-        });
-
-        await prisma.notification.update({
-            where: { id: params.notificationId },
-            data: {
-                status: NotificationStatus.sent,
-                sentAt: new Date(),
-            },
-        });
-    } catch (error) {
-        await prisma.notification.update({
-            where: { id: params.notificationId },
-            data: {
-                status: NotificationStatus.failed,
-            },
-        });
-
-        console.error("[booking] failed to send booking email:", error);
-    }
 }
 
 export async function createBooking(
@@ -323,79 +288,113 @@ export async function createBooking(
             const sessionLabel = `${formatDateTime(slot.startAt)} - ${formatDateTime(slot.endAt)}`;
             const amountLabel = formatMoney(priceAtBooking);
 
-            const [studentInApp, tutorInApp, studentEmail, tutorEmail] =
-                await Promise.all([
-                    tx.notification.create({
-                        data: {
-                            userId: student.id,
-                            bookingId: booking.id,
-                            type: NotificationType.booking_confirmed,
-                            channel: NotificationChannel.in_app,
-                            title: "Booking confirmed",
-                            message: `Your session with ${tutorDisplayName} is confirmed for ${sessionLabel}.`,
-                            status: NotificationStatus.sent,
-                            sentAt: new Date(),
-                        },
-                        select: { id: true },
-                    }),
-                    tx.notification.create({
-                        data: {
-                            userId: tutor.user.id,
-                            bookingId: booking.id,
-                            type: NotificationType.booking_confirmed,
-                            channel: NotificationChannel.in_app,
-                            title: "New booking received",
-                            message: `${studentDisplayName} booked a session for ${sessionLabel}.`,
-                            status: NotificationStatus.sent,
-                            sentAt: new Date(),
-                        },
-                        select: { id: true },
-                    }),
-                    tx.notification.create({
-                        data: {
-                            userId: student.id,
-                            bookingId: booking.id,
-                            type: NotificationType.booking_confirmed,
-                            channel: NotificationChannel.email,
-                            title: "Booking confirmed",
-                            message: `Your session with ${tutorDisplayName} is confirmed for ${sessionLabel}. Amount: ${amountLabel}.`,
-                            status: NotificationStatus.pending,
-                            scheduledFor: new Date(),
-                        },
-                        select: { id: true },
-                    }),
-                    tx.notification.create({
-                        data: {
-                            userId: tutor.user.id,
-                            bookingId: booking.id,
-                            type: NotificationType.booking_confirmed,
-                            channel: NotificationChannel.email,
-                            title: "New booking received",
-                            message: `${studentDisplayName} booked a session for ${sessionLabel}. Amount: ${amountLabel}.`,
-                            status: NotificationStatus.pending,
-                            scheduledFor: new Date(),
-                        },
-                        select: { id: true },
-                    }),
-                ]);
+            const reminderAt =
+                slot.startAt.getTime() - now.getTime() <= 15 * 60 * 1000
+                    ? now
+                    : new Date(slot.startAt.getTime() - 15 * 60 * 1000);
+
+            await Promise.all([
+                tx.notification.create({
+                    data: {
+                        userId: student.id,
+                        bookingId: booking.id,
+                        type: NotificationType.booking_confirmed,
+                        channel: NotificationChannel.in_app,
+                        title: "Booking confirmed",
+                        message: `Your session with ${tutorDisplayName} is confirmed for ${sessionLabel}.`,
+                        status: NotificationStatus.pending,
+                        scheduledFor: now,
+                    },
+                }),
+                tx.notification.create({
+                    data: {
+                        userId: tutor.user.id,
+                        bookingId: booking.id,
+                        type: NotificationType.booking_confirmed,
+                        channel: NotificationChannel.in_app,
+                        title: "New booking received",
+                        message: `${studentDisplayName} booked a session for ${sessionLabel}.`,
+                        status: NotificationStatus.pending,
+                        scheduledFor: now,
+                    },
+                }),
+                tx.notification.create({
+                    data: {
+                        userId: student.id,
+                        bookingId: booking.id,
+                        type: NotificationType.booking_confirmed,
+                        channel: NotificationChannel.email,
+                        title: "Booking confirmed",
+                        message: `Your session with ${tutorDisplayName} is confirmed for ${sessionLabel}. Amount: ${amountLabel}.`,
+                        status: NotificationStatus.pending,
+                        scheduledFor: now,
+                    },
+                }),
+                tx.notification.create({
+                    data: {
+                        userId: tutor.user.id,
+                        bookingId: booking.id,
+                        type: NotificationType.booking_confirmed,
+                        channel: NotificationChannel.email,
+                        title: "New booking received",
+                        message: `${studentDisplayName} booked a session for ${sessionLabel}. Amount: ${amountLabel}.`,
+                        status: NotificationStatus.pending,
+                        scheduledFor: now,
+                    },
+                }),
+                tx.notification.create({
+                    data: {
+                        userId: student.id,
+                        bookingId: booking.id,
+                        type: NotificationType.session_reminder,
+                        channel: NotificationChannel.in_app,
+                        title: "15 minutes left for your session",
+                        message: `Your session with ${tutorDisplayName} starts in 15 minutes.`,
+                        status: NotificationStatus.pending,
+                        scheduledFor: reminderAt,
+                    },
+                }),
+                tx.notification.create({
+                    data: {
+                        userId: tutor.user.id,
+                        bookingId: booking.id,
+                        type: NotificationType.session_reminder,
+                        channel: NotificationChannel.in_app,
+                        title: "15 minutes left for your session",
+                        message: `Your session with ${studentDisplayName} starts in 15 minutes.`,
+                        status: NotificationStatus.pending,
+                        scheduledFor: reminderAt,
+                    },
+                }),
+                tx.notification.create({
+                    data: {
+                        userId: student.id,
+                        bookingId: booking.id,
+                        type: NotificationType.session_reminder,
+                        channel: NotificationChannel.email,
+                        title: "15 minutes left for your session",
+                        message: `Your session with ${tutorDisplayName} starts in 15 minutes.`,
+                        status: NotificationStatus.pending,
+                        scheduledFor: reminderAt,
+                    },
+                }),
+                tx.notification.create({
+                    data: {
+                        userId: tutor.user.id,
+                        bookingId: booking.id,
+                        type: NotificationType.session_reminder,
+                        channel: NotificationChannel.email,
+                        title: "15 minutes left for your session",
+                        message: `Your session with ${studentDisplayName} starts in 15 minutes.`,
+                        status: NotificationStatus.pending,
+                        scheduledFor: reminderAt,
+                    },
+                }),
+            ]);
 
             return {
                 booking,
                 session,
-                emails: {
-                    student: {
-                        notificationId: studentEmail.id,
-                        to: student.email,
-                        subject: "SkillBridge booking confirmed",
-                        text: `Hello ${studentDisplayName},\n\nYour session with ${tutorDisplayName} is confirmed.\nWhen: ${sessionLabel}\nAmount: ${amountLabel}\n\nPayment gateway support will be added later. For now, the booking is marked as paid.\n\nSkillBridge`,
-                    },
-                    tutor: {
-                        notificationId: tutorEmail.id,
-                        to: tutor.user.email,
-                        subject: "New SkillBridge booking received",
-                        text: `Hello ${tutorDisplayName},\n\n${studentDisplayName} booked a session with you.\nWhen: ${sessionLabel}\nAmount: ${amountLabel}\n\nPlease check your dashboard sessions page for details.\n\nSkillBridge`,
-                    },
-                },
             };
         },
         {
@@ -466,11 +465,6 @@ export async function createBooking(
         });
     }
 
-    await Promise.allSettled([
-        sendNotificationEmail(bookingResult.emails.student),
-        sendNotificationEmail(bookingResult.emails.tutor),
-    ]);
-
     return {
         booking: {
             id: bookingResult.booking.id,
@@ -499,8 +493,6 @@ export async function getMySessions(
     userId: string,
     role: "student" | "tutor" | "admin"
 ): Promise<SessionListResponse> {
-    await reconcileCompletedSessions();
-
     if (role !== Role.student && role !== Role.tutor) {
         throw new HttpError(403, "Sessions are only available for tutors and students.");
     }
@@ -683,6 +675,19 @@ export async function cancelBooking(
 
     const result = await prisma.$transaction(
         async (tx) => {
+            await tx.notification.updateMany({
+                where: {
+                    bookingId: booking.id,
+                    status: NotificationStatus.pending,
+                    type: {
+                        in: [NotificationType.booking_confirmed, NotificationType.session_reminder],
+                    },
+                },
+                data: {
+                    status: NotificationStatus.failed,
+                },
+            });
+
             await tx.booking.update({
                 where: { id: booking.id },
                 data: {
@@ -715,7 +720,7 @@ export async function cancelBooking(
                 },
             });
 
-            const [studentEmail, tutorEmail] = await Promise.all([
+            await Promise.all([
                 tx.notification.create({
                     data: {
                         userId: booking.student.id,
@@ -727,7 +732,6 @@ export async function cancelBooking(
                         status: NotificationStatus.pending,
                         scheduledFor: new Date(),
                     },
-                    select: { id: true },
                 }),
                 tx.notification.create({
                     data: {
@@ -740,7 +744,6 @@ export async function cancelBooking(
                         status: NotificationStatus.pending,
                         scheduledFor: new Date(),
                     },
-                    select: { id: true },
                 }),
             ]);
 
@@ -771,8 +774,6 @@ export async function cancelBooking(
 
             return {
                 slotReleased: releasedSlot.count > 0,
-                studentEmailNotificationId: studentEmail.id,
-                tutorEmailNotificationId: tutorEmail.id,
             };
         },
         {
@@ -781,21 +782,7 @@ export async function cancelBooking(
         }
     );
 
-    await Promise.allSettled([
-        deleteZoomMeeting(booking.session?.meetingId),
-        sendNotificationEmail({
-            notificationId: result.studentEmailNotificationId,
-            to: booking.student.email,
-            subject: "SkillBridge session cancelled",
-            text: `Hello ${studentDisplayName},\n\n${cancelledByName} cancelled the session scheduled for ${sessionLabel}.\n\nIf the time slot is still in the future, it has been released back to availability.\n\nSkillBridge`,
-        }),
-        sendNotificationEmail({
-            notificationId: result.tutorEmailNotificationId,
-            to: booking.tutor.user.email,
-            subject: "SkillBridge session cancelled",
-            text: `Hello ${tutorDisplayName},\n\n${cancelledByName} cancelled the session scheduled for ${sessionLabel}.\n\nIf the time slot is still in the future, it has been released back to availability.\n\nSkillBridge`,
-        }),
-    ]);
+    await Promise.allSettled([deleteZoomMeeting(booking.session?.meetingId)]);
 
     return {
         bookingId: booking.id,
