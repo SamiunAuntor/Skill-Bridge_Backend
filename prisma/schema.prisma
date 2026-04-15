@@ -269,6 +269,12 @@ model Session {
 
   bookingId String @unique
 
+  meetingProvider String?
+  meetingId       String?
+  meetingJoinUrl  String?
+  meetingHostUrl  String?
+  meetingPassword String?
+
   actualStartTime DateTime?
   actualEndTime   DateTime?
 

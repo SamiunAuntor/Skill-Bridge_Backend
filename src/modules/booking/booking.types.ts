@@ -16,6 +16,10 @@ export interface BookingConfirmationResponse {
         status: "confirmed";
         paymentStatus: "paid";
         sessionStatus: "scheduled";
+        meetingProvider: string | null;
+        meetingId: string | null;
+        meetingJoinUrl: string | null;
+        meetingPassword: string | null;
     };
 }
 
@@ -29,6 +33,11 @@ export interface SessionListItem {
     endTime: string;
     priceAtBooking: number;
     canCancel: boolean;
+    canJoin: boolean;
+    meetingProvider: string | null;
+    meetingId: string | null;
+    meetingJoinUrl: string | null;
+    meetingPassword: string | null;
     student: {
         id: string;
         name: string;
@@ -51,4 +60,11 @@ export interface CancelBookingResponse {
     status: "cancelled";
     sessionStatus: "cancelled" | null;
     slotReleased: boolean;
+}
+
+export interface JoinSessionResponse {
+    bookingId: string;
+    sessionId: string;
+    sessionStatus: "ongoing" | "completed";
+    meetingJoinUrl: string;
 }

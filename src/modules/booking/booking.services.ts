@@ -9,11 +9,13 @@ import {
 } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
 import { sendMail } from "../../services/email";
+import { createZoomMeeting, deleteZoomMeeting } from "../../services/zoom/zoom.service";
 import { HttpError } from "../../utils/http-error";
 import {
     BookingConfirmationResponse,
     CancelBookingResponse,
     CreateBookingInput,
+    JoinSessionResponse,
     SessionListItem,
     SessionListResponse,
 } from "./booking.types";
@@ -70,6 +72,10 @@ function mapSessionListItem(input: {
     startTime: Date;
     endTime: Date;
     priceAtBooking: number;
+    meetingProvider: string | null;
+    meetingId: string | null;
+    meetingJoinUrl: string | null;
+    meetingPassword: string | null;
     student: {
         id: string;
         name: string;
@@ -92,6 +98,7 @@ function mapSessionListItem(input: {
     };
 }): SessionListItem {
     const now = new Date();
+    const joinOpensAt = new Date(input.startTime.getTime() - 10 * 60 * 1000);
 
     return {
         bookingId: input.bookingId,
@@ -106,6 +113,16 @@ function mapSessionListItem(input: {
             input.bookingStatus === BookingStatus.confirmed &&
             input.sessionStatus === SessionStatus.scheduled &&
             input.startTime > now,
+        canJoin:
+            Boolean(input.meetingJoinUrl) &&
+            (input.sessionStatus === SessionStatus.scheduled ||
+                input.sessionStatus === SessionStatus.ongoing) &&
+            input.endTime > now &&
+            joinOpensAt <= now,
+        meetingProvider: input.meetingProvider,
+        meetingId: input.meetingId,
+        meetingJoinUrl: input.meetingJoinUrl,
+        meetingPassword: input.meetingPassword,
         student: {
             id: input.student.id,
             name: normalizeDisplayName(input.student),
@@ -293,6 +310,10 @@ export async function createBooking(
                 select: {
                     id: true,
                     status: true,
+                    meetingProvider: true,
+                    meetingId: true,
+                    meetingJoinUrl: true,
+                    meetingPassword: true,
                 },
             });
 
@@ -382,6 +403,27 @@ export async function createBooking(
         }
     );
 
+    const studentDisplayName = normalizeDisplayName(student);
+    const tutorDisplayName = normalizeDisplayName(tutor.user);
+    const zoomMeeting = await createZoomMeeting({
+        topic: `SkillBridge Session: ${studentDisplayName} with ${tutorDisplayName}`,
+        startAt: bookingResult.booking.startTime,
+        endAt: bookingResult.booking.endTime,
+    });
+
+    if (zoomMeeting) {
+        await prisma.session.update({
+            where: { bookingId: bookingResult.booking.id },
+            data: {
+                meetingProvider: zoomMeeting.meetingProvider,
+                meetingId: zoomMeeting.meetingId,
+                meetingJoinUrl: zoomMeeting.meetingJoinUrl,
+                meetingHostUrl: zoomMeeting.meetingHostUrl,
+                meetingPassword: zoomMeeting.meetingPassword,
+            },
+        });
+    }
+
     await Promise.allSettled([
         sendNotificationEmail(bookingResult.emails.student),
         sendNotificationEmail(bookingResult.emails.tutor),
@@ -400,6 +442,13 @@ export async function createBooking(
             status: "confirmed",
             paymentStatus: "paid",
             sessionStatus: "scheduled",
+            meetingProvider:
+                zoomMeeting?.meetingProvider ?? bookingResult.session.meetingProvider,
+            meetingId: zoomMeeting?.meetingId ?? bookingResult.session.meetingId,
+            meetingJoinUrl:
+                zoomMeeting?.meetingJoinUrl ?? bookingResult.session.meetingJoinUrl,
+            meetingPassword:
+                zoomMeeting?.meetingPassword ?? bookingResult.session.meetingPassword,
         },
     };
 }
@@ -473,6 +522,10 @@ export async function getMySessions(
                 select: {
                     id: true,
                     status: true,
+                    meetingProvider: true,
+                    meetingId: true,
+                    meetingJoinUrl: true,
+                    meetingPassword: true,
                 },
             },
         },
@@ -491,6 +544,10 @@ export async function getMySessions(
                     startTime: item.startTime,
                     endTime: item.endTime,
                     priceAtBooking: item.priceAtBooking,
+                    meetingProvider: item.session.meetingProvider,
+                    meetingId: item.session.meetingId,
+                    meetingJoinUrl: item.session.meetingJoinUrl,
+                    meetingPassword: item.session.meetingPassword,
                     student: item.student,
                     tutor: item.tutor,
                 })
@@ -557,6 +614,7 @@ export async function cancelBooking(
                 select: {
                     id: true,
                     status: true,
+                    meetingId: true,
                 },
             },
         },
@@ -680,6 +738,7 @@ export async function cancelBooking(
     );
 
     await Promise.allSettled([
+        deleteZoomMeeting(booking.session?.meetingId),
         sendNotificationEmail({
             notificationId: result.studentEmailNotificationId,
             to: booking.student.email,
@@ -700,5 +759,126 @@ export async function cancelBooking(
         status: "cancelled",
         sessionStatus: booking.session ? "cancelled" : null,
         slotReleased: result.slotReleased,
+    };
+}
+
+export async function joinSession(
+    userId: string,
+    role: "student" | "tutor" | "admin",
+    bookingId: string
+): Promise<JoinSessionResponse> {
+    if (role !== Role.student && role !== Role.tutor) {
+        throw new HttpError(403, "Only tutors or students can join sessions.");
+    }
+
+    const booking = await prisma.booking.findFirst({
+        where:
+            role === Role.student
+                ? {
+                      id: bookingId,
+                      studentId: userId,
+                      deletedAt: null,
+                  }
+                : {
+                      id: bookingId,
+                      deletedAt: null,
+                      tutor: {
+                          userId,
+                          deletedAt: null,
+                      },
+                  },
+        select: {
+            id: true,
+            startTime: true,
+            endTime: true,
+            status: true,
+            session: {
+                select: {
+                    id: true,
+                    status: true,
+                    meetingJoinUrl: true,
+                },
+            },
+        },
+    });
+
+    if (!booking || !booking.session) {
+        throw new HttpError(404, "Session not found.");
+    }
+
+    if (!booking.session.meetingJoinUrl) {
+        throw new HttpError(409, "Meeting link is not available yet.");
+    }
+
+    if (booking.status === BookingStatus.cancelled || booking.session.status === SessionStatus.cancelled) {
+        throw new HttpError(409, "Cancelled sessions cannot be joined.");
+    }
+
+    const now = new Date();
+    const joinOpensAt = new Date(booking.startTime.getTime() - 10 * 60 * 1000);
+
+    if (now < joinOpensAt) {
+        throw new HttpError(400, "Join will be available 10 minutes before the session starts.");
+    }
+
+    let nextStatus: SessionStatus = booking.session.status;
+
+    if (booking.session.status === SessionStatus.scheduled) {
+        const updated = await prisma.session.update({
+            where: { bookingId: booking.id },
+            data: {
+                status: SessionStatus.ongoing,
+                actualStartTime: booking.startTime <= now ? now : booking.startTime,
+            },
+            select: {
+                status: true,
+            },
+        });
+
+        nextStatus = updated.status;
+    }
+
+    if (booking.endTime <= now && nextStatus !== SessionStatus.completed) {
+        const durationHours = Math.max(
+            0,
+            Number(
+                ((booking.endTime.getTime() - booking.startTime.getTime()) /
+                    (1000 * 60 * 60)).toFixed(2)
+            )
+        );
+
+        const completed = await prisma.$transaction(async (tx) => {
+            await tx.session.update({
+                where: { bookingId: booking.id },
+                data: {
+                    status: SessionStatus.completed,
+                    actualStartTime: booking.startTime,
+                    actualEndTime: booking.endTime,
+                    durationHours,
+                },
+            });
+
+            await tx.booking.update({
+                where: { id: booking.id },
+                data: {
+                    status: BookingStatus.completed,
+                    completedAt: new Date(),
+                },
+            });
+
+            return SessionStatus.completed;
+        });
+
+        nextStatus = completed;
+    }
+
+    const sessionStatus: "ongoing" | "completed" =
+        nextStatus === SessionStatus.completed ? "completed" : "ongoing";
+
+    return {
+        bookingId: booking.id,
+        sessionId: booking.session.id,
+        sessionStatus,
+        meetingJoinUrl: booking.session.meetingJoinUrl,
     };
 }

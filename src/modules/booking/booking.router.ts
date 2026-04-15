@@ -4,12 +4,19 @@ import {
     cancelBookingController,
     createBookingController,
     getMySessionsController,
+    joinSessionController,
 } from "./booking.controller";
 
 const bookingRouter = Router();
 
 bookingRouter.get("/me/sessions", requireAuth, getMySessionsController);
 bookingRouter.post("/", requireAuth, requireRole("student"), createBookingController);
+bookingRouter.post(
+    "/:bookingId/join",
+    requireAuth,
+    requireRole("student", "tutor"),
+    joinSessionController
+);
 bookingRouter.patch(
     "/:bookingId/cancel",
     requireAuth,
