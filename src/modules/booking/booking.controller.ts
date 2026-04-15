@@ -1,7 +1,7 @@
 import { NextFunction, Response } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { HttpError } from "../../utils/http-error";
-import { createBooking } from "./booking.services";
+import { cancelBooking, createBooking, getMySessions } from "./booking.services";
 
 export async function createBookingController(
     req: AuthenticatedRequest,
@@ -37,6 +37,61 @@ export async function createBookingController(
         res.status(201).json({
             success: true,
             message: "Booking created successfully.",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getMySessionsController(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.authUser) {
+            throw new HttpError(401, "Unauthorized");
+        }
+
+        const result = await getMySessions(req.authUser.id, req.authUser.role);
+
+        res.status(200).json({
+            success: true,
+            message: "Sessions fetched successfully.",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function cancelBookingController(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.authUser) {
+            throw new HttpError(401, "Unauthorized");
+        }
+
+        const bookingId =
+            typeof req.params.bookingId === "string" ? req.params.bookingId.trim() : "";
+
+        if (!bookingId) {
+            throw new HttpError(400, "bookingId is required.");
+        }
+
+        const result = await cancelBooking(
+            req.authUser.id,
+            req.authUser.role,
+            bookingId
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Booking cancelled successfully.",
             data: result,
         });
     } catch (error) {

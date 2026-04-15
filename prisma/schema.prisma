@@ -34,8 +34,10 @@ enum PaymentStatus {
 }
 
 enum SessionStatus {
+  scheduled
   ongoing
   completed
+  cancelled
 }
 
 enum VisibilityStatus {
