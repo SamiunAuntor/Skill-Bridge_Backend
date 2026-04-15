@@ -6,6 +6,7 @@ import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
 import availabilityRouter from "./modules/availability/availability.router";
 import bookingRouter from "./modules/booking/booking.router";
+import publicRouter from "./modules/public/public.router";
 import reviewRouter from "./modules/review/review.router";
 import studentRouter from "./modules/student/student.router";
 import tutorRouter from "./modules/tutor/tutor.router";
@@ -24,6 +25,7 @@ app.use(
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.use(express.json());
+app.use("/api/public", publicRouter);
 app.use("/api/availability", availabilityRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/reviews", reviewRouter);

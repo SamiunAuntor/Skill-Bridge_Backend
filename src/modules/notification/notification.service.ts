@@ -7,6 +7,11 @@ import {
 } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
 import { sendMail } from "../../services/email";
+import {
+    escapeHtml,
+    renderEmailDetailRows,
+    renderEmailLayout,
+} from "../../services/email/email-template";
 
 function formatDateTime(value: Date): string {
     return new Intl.DateTimeFormat("en-BD", {
@@ -84,50 +89,19 @@ function buildEmailTemplate(params: {
         .filter(Boolean)
         .join("\n");
 
-    const detailRowsHtml = params.detailRows
-        .map(
-            (row) => `
-              <tr>
-                <td style="padding:8px 0;color:#6b7280;font-size:13px;font-weight:600;">${row.label}</td>
-                <td style="padding:8px 0;color:#0f172a;font-size:14px;text-align:right;">${row.value}</td>
-              </tr>
-            `
-        )
-        .join("");
-
-    const ctaHtml =
-        params.ctaLabel && params.ctaUrl
-            ? `
-                <div style="margin-top:28px;">
-                  <a href="${params.ctaUrl}" style="display:inline-block;background:#1d3b66;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:12px;">
-                    ${params.ctaLabel}
-                  </a>
-                </div>
-              `
-            : "";
-
-    const noteHtml = params.note
-        ? `<p style="margin:24px 0 0;color:#475569;font-size:13px;line-height:1.6;">${params.note}</p>`
-        : "";
-
-    const html = `
-      <div style="margin:0;padding:24px;background:#eef4fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
-        <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;border:1px solid rgba(29,59,102,0.08);box-shadow:0 18px 40px rgba(15,23,42,0.08);">
-          <div style="padding:24px 28px;background:#1d3b66;color:#ffffff;">
-            <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;opacity:0.75;">${params.preheader}</div>
-            <h1 style="margin:12px 0 0;font-size:28px;line-height:1.2;font-weight:800;">${params.title}</h1>
-          </div>
-          <div style="padding:28px;">
-            <p style="margin:0 0 22px;color:#334155;font-size:15px;line-height:1.7;">${params.intro}</p>
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f8fafc;border:1px solid rgba(148,163,184,0.25);border-radius:18px;padding:16px;">
-              <tbody>${detailRowsHtml}</tbody>
-            </table>
-            ${ctaHtml}
-            ${noteHtml}
-          </div>
-        </div>
-      </div>
-    `;
+    const html = renderEmailLayout({
+        preheader: params.preheader,
+        title: params.title,
+        intro: escapeHtml(params.intro),
+        detailRowsHtml: renderEmailDetailRows(params.detailRows),
+        ...(params.ctaLabel && params.ctaUrl
+            ? {
+                  ctaLabel: params.ctaLabel,
+                  ctaUrl: params.ctaUrl,
+              }
+            : {}),
+        ...(params.note ? { footerNote: escapeHtml(params.note) } : {}),
+    });
 
     return { text, html };
 }
