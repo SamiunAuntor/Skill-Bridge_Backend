@@ -786,13 +786,60 @@ export async function getTutorDashboardSummary(
         throw new HttpError(403, "Tutor dashboard summary is only available for tutors.");
     }
 
+    const tutorProfile = await prisma.tutorProfile.findFirst({
+        where: {
+            userId,
+            deletedAt: null,
+            user: {
+                deletedAt: null,
+                isBanned: false,
+                role: Role.tutor,
+            },
+        },
+        select: {
+            id: true,
+            averageRating: true,
+            totalReviews: true,
+            reviews: {
+                where: {
+                    deletedAt: null,
+                    isVisible: true,
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
+                take: 3,
+                select: {
+                    id: true,
+                    rating: true,
+                    comment: true,
+                    createdAt: true,
+                    student: {
+                        select: {
+                            id: true,
+                            name: true,
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                            image: true,
+                            avatarUrl: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    if (!tutorProfile) {
+        throw new HttpError(404, "Tutor profile not found.");
+    }
+
     const [completedRows, upcomingRows] = await Promise.all([
         prisma.booking.findMany({
             where: {
                 deletedAt: null,
                 tutor: {
-                    userId,
-                    deletedAt: null,
+                    id: tutorProfile.id,
                 },
                 session: {
                     is: {
@@ -813,8 +860,7 @@ export async function getTutorDashboardSummary(
             where: {
                 deletedAt: null,
                 tutor: {
-                    userId,
-                    deletedAt: null,
+                    id: tutorProfile.id,
                 },
                 session: {
                     is: {
@@ -894,7 +940,9 @@ export async function getTutorDashboardSummary(
         stats: {
             totalEarnings: Number(stats.totalEarnings.toFixed(2)),
             totalHours: Number(stats.totalHours.toFixed(2)),
-            averageRating: null,
+            averageRating:
+                tutorProfile.totalReviews > 0 ? tutorProfile.averageRating : null,
+            totalReviews: tutorProfile.totalReviews,
         },
         upcomingSessions: upcomingRows
             .filter((item): item is typeof item & { session: NonNullable<typeof item.session> } =>
@@ -919,6 +967,17 @@ export async function getTutorDashboardSummary(
                     tutor: item.tutor,
                 })
             ),
+        recentFeedback: tutorProfile.reviews.map((review) => ({
+            id: review.id,
+            rating: review.rating,
+            comment: review.comment,
+            createdAt: review.createdAt.toISOString(),
+            student: {
+                id: review.student.id,
+                name: normalizeDisplayName(review.student),
+                avatarUrl: review.student.image || review.student.avatarUrl,
+            },
+        })),
     };
 }
 

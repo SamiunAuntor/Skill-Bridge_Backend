@@ -141,6 +141,10 @@ function slugifyExpertiseName(name: string): string {
         .replace(/^-+|-+$/g, "");
 }
 
+function computeIsTopRated(averageRating: number, totalReviews: number): boolean {
+    return totalReviews >= 10 && averageRating >= 4.5;
+}
+
 type TutorStatsSnapshot = {
     averageRating: number;
     totalReviews: number;
@@ -259,25 +263,12 @@ export async function syncTutorProfileStats(targetTutorId?: string): Promise<voi
         snapshot.totalHoursTaught += Math.max(durationHours, 0);
     }
 
-    const rankedTutors = [...statsByTutor.entries()]
-        .filter(([, snapshot]) => snapshot.totalReviews > 0)
-        .sort((left, right) => {
-            if (right[1].averageRating !== left[1].averageRating) {
-                return right[1].averageRating - left[1].averageRating;
-            }
-
-            return right[1].totalReviews - left[1].totalReviews;
-        })
-        .slice(0, 10)
-        .map(([tutorId]) => tutorId);
-
-    const topRatedIds = new Set(rankedTutors);
-
     for (const [tutorId, snapshot] of statsByTutor.entries()) {
         snapshot.totalHoursTaught = Number(snapshot.totalHoursTaught.toFixed(2));
-        snapshot.isTopRated =
-            snapshot.averageRating >= 4.5 ||
-            (snapshot.totalReviews > 0 && topRatedIds.has(tutorId));
+        snapshot.isTopRated = computeIsTopRated(
+            snapshot.averageRating,
+            snapshot.totalReviews
+        );
     }
 
     await prisma.$transaction(
@@ -371,7 +362,10 @@ export async function getTutors(
             experienceYears: tutor.experienceYears,
             averageRating: tutor.averageRating,
             totalReviews: tutor.totalReviews,
-            isTopRated: tutor.isTopRated,
+            isTopRated: computeIsTopRated(
+                tutor.averageRating,
+                tutor.totalReviews
+            ),
             categories: tutor.categories.map(({ category }) => ({
                 id: category.id,
                 name: category.name,
@@ -476,7 +470,10 @@ export async function getTutorById(
             totalEarnings: tutor.totalEarnings,
             averageRating: tutor.averageRating,
             totalReviews: tutor.totalReviews,
-            isTopRated: tutor.isTopRated,
+            isTopRated: computeIsTopRated(
+                tutor.averageRating,
+                tutor.totalReviews
+            ),
             categories: tutor.categories.map(({ category }) => ({
                 id: category.id,
                 name: category.name,

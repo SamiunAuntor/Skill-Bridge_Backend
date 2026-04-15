@@ -7,6 +7,7 @@ import { errorHandler } from "./middlewares/error.middleware";
 import availabilityRouter from "./modules/availability/availability.router";
 import bookingRouter from "./modules/booking/booking.router";
 import reviewRouter from "./modules/review/review.router";
+import studentRouter from "./modules/student/student.router";
 import tutorRouter from "./modules/tutor/tutor.router";
 import uploadRouter from "./modules/upload/upload.router";
 
@@ -26,6 +27,7 @@ app.use(express.json());
 app.use("/api/availability", availabilityRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/reviews", reviewRouter);
+app.use("/api/students", studentRouter);
 app.use("/api/tutors", tutorRouter);
 app.use("/api/uploads", uploadRouter);
 
