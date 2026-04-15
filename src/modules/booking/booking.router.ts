@@ -4,12 +4,19 @@ import {
     cancelBookingController,
     createBookingController,
     getMySessionsController,
+    getTutorDashboardSummaryController,
     joinSessionController,
 } from "./booking.controller";
 
 const bookingRouter = Router();
 
 bookingRouter.get("/me/sessions", requireAuth, getMySessionsController);
+bookingRouter.get(
+    "/me/tutor-dashboard",
+    requireAuth,
+    requireRole("tutor"),
+    getTutorDashboardSummaryController
+);
 bookingRouter.post("/", requireAuth, requireRole("student"), createBookingController);
 bookingRouter.post(
     "/:bookingId/join",

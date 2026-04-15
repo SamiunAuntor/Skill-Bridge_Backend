@@ -5,6 +5,7 @@ import {
     cancelBooking,
     createBooking,
     getMySessions,
+    getTutorDashboardSummary,
     joinSession,
 } from "./booking.services";
 import { SessionListQuery, SessionListSortOption } from "./booking.types";
@@ -94,6 +95,31 @@ export async function getMySessionsController(
         res.status(200).json({
             success: true,
             message: "Sessions fetched successfully.",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getTutorDashboardSummaryController(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        if (!req.authUser) {
+            throw new HttpError(401, "Unauthorized");
+        }
+
+        const result = await getTutorDashboardSummary(
+            req.authUser.id,
+            req.authUser.role
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Tutor dashboard summary fetched successfully.",
             data: result,
         });
     } catch (error) {

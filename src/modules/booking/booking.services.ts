@@ -19,6 +19,7 @@ import {
     SessionListQuery,
     SessionListResponse,
     SessionListSortOption,
+    TutorDashboardSummaryResponse,
 } from "./booking.types";
 import { Prisma } from "../../generated/prisma/client";
 
@@ -765,6 +766,144 @@ export async function getMySessions(
             search: filters.search ?? "",
             sortBy: filters.sortBy,
         },
+    };
+}
+
+export async function getTutorDashboardSummary(
+    userId: string,
+    role: "student" | "tutor" | "admin"
+): Promise<TutorDashboardSummaryResponse> {
+    if (role !== Role.tutor) {
+        throw new HttpError(403, "Tutor dashboard summary is only available for tutors.");
+    }
+
+    const [completedRows, upcomingRows] = await Promise.all([
+        prisma.booking.findMany({
+            where: {
+                deletedAt: null,
+                tutor: {
+                    userId,
+                    deletedAt: null,
+                },
+                session: {
+                    is: {
+                        status: SessionStatus.completed,
+                    },
+                },
+            },
+            select: {
+                priceAtBooking: true,
+                session: {
+                    select: {
+                        durationHours: true,
+                    },
+                },
+            },
+        }),
+        prisma.booking.findMany({
+            where: {
+                deletedAt: null,
+                tutor: {
+                    userId,
+                    deletedAt: null,
+                },
+                session: {
+                    is: {
+                        status: {
+                            in: [SessionStatus.scheduled, SessionStatus.ongoing],
+                        },
+                    },
+                },
+            },
+            orderBy: [{ startTime: "asc" }, { createdAt: "desc" }],
+            take: 4,
+            select: {
+                id: true,
+                status: true,
+                sessionDate: true,
+                startTime: true,
+                endTime: true,
+                priceAtBooking: true,
+                student: {
+                    select: {
+                        id: true,
+                        name: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        image: true,
+                        avatarUrl: true,
+                    },
+                },
+                tutor: {
+                    select: {
+                        id: true,
+                        user: {
+                            select: {
+                                name: true,
+                                firstName: true,
+                                lastName: true,
+                                email: true,
+                                image: true,
+                                avatarUrl: true,
+                            },
+                        },
+                    },
+                },
+                session: {
+                    select: {
+                        id: true,
+                        status: true,
+                        meetingProvider: true,
+                        meetingId: true,
+                        meetingJoinUrl: true,
+                        meetingPassword: true,
+                    },
+                },
+            },
+        }),
+    ]);
+
+    const stats = completedRows.reduce(
+        (accumulator, row) => {
+            accumulator.totalEarnings += row.priceAtBooking;
+            accumulator.totalHours += row.session?.durationHours ?? 0;
+            return accumulator;
+        },
+        {
+            totalEarnings: 0,
+            totalHours: 0,
+        }
+    );
+
+    return {
+        stats: {
+            totalEarnings: Number(stats.totalEarnings.toFixed(2)),
+            totalHours: Number(stats.totalHours.toFixed(2)),
+            averageRating: null,
+        },
+        upcomingSessions: upcomingRows
+            .filter((item): item is typeof item & { session: NonNullable<typeof item.session> } =>
+                Boolean(item.session)
+            )
+            .map((item) =>
+                mapSessionListItem({
+                    bookingId: item.id,
+                    sessionId: item.session.id,
+                    bookingStatus: item.status,
+                    sessionStatus: item.session.status,
+                    sessionDate: item.sessionDate,
+                    startTime: item.startTime,
+                    endTime: item.endTime,
+                    priceAtBooking: item.priceAtBooking,
+                    meetingProvider: item.session.meetingProvider,
+                    meetingId: item.session.meetingId,
+                    meetingJoinUrl: item.session.meetingJoinUrl,
+                    meetingPassword: item.session.meetingPassword,
+                    student: item.student,
+                    tutor: item.tutor,
+                })
+            ),
     };
 }
 

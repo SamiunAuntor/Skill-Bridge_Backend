@@ -77,6 +77,15 @@ export interface SessionListResponse {
     };
 }
 
+export interface TutorDashboardSummaryResponse {
+    stats: {
+        totalEarnings: number;
+        totalHours: number;
+        averageRating: number | null;
+    };
+    upcomingSessions: SessionListItem[];
+}
+
 export interface CancelBookingResponse {
     bookingId: string;
     sessionId: string | null;
