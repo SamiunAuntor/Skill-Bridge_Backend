@@ -12,7 +12,7 @@ import studentRouter from "./modules/student/student.router";
 import tutorRouter from "./modules/tutor/tutor.router";
 import uploadRouter from "./modules/upload/upload.router";
 
-const app = express();
+const app: express.Application = express();
 
 app.use(
     cors({
