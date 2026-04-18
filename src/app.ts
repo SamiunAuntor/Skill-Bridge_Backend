@@ -1,9 +1,10 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
-import { auth } from "./auth/auth";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
+import { auth } from "./modules/auth/auth.core";
+import authRouter from "./modules/auth/auth.router";
 import availabilityRouter from "./modules/availability/availability.router";
 import bookingRouter from "./modules/booking/booking.router";
 import publicRouter from "./modules/public/public.router";
@@ -21,10 +22,11 @@ app.use(
     })
 );
 
-// Better Auth reads the raw body; mount before express.json()
-app.all("/api/auth/{*any}", toNodeHandler(auth));
+// Better Auth reads the raw body; keep it isolated from app-auth JWT routes.
+app.all("/api/auth/core/{*any}", toNodeHandler(auth));
 
 app.use(express.json());
+app.use("/api/auth", authRouter);
 app.use("/api/public", publicRouter);
 app.use("/api/availability", availabilityRouter);
 app.use("/api/bookings", bookingRouter);

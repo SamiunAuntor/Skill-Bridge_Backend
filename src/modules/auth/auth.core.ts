@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
-import { prisma } from "../config/prisma.config";
-import { env } from "../config/env";
+import { APIError } from "@better-auth/core/error";
+import { prisma } from "../../config/prisma.config";
+import { env } from "../../config/env";
 import { sendAuthEmail } from "./auth-email";
 
 function buildTrustedOrigins(): string[] {
@@ -69,7 +70,6 @@ export const auth = betterAuth({
 
     user: {
         additionalFields: {
-            /** Keep literals in sync with `auth.constants.ts` / Prisma `Role`. */
             role: {
                 type: ["student", "tutor", "admin"],
                 required: false,
@@ -120,6 +120,27 @@ export const auth = betterAuth({
         },
         session: {
             create: {
+                before: async (session) => {
+                    const user = await prisma.user.findUnique({
+                        where: {
+                            id: session.userId,
+                        },
+                        select: {
+                            isBanned: true,
+                            deletedAt: true,
+                        },
+                    });
+
+                    if (!user || user.deletedAt || user.isBanned) {
+                        throw new APIError("FORBIDDEN", {
+                            message: "This account is not allowed to sign in.",
+                        });
+                    }
+
+                    return {
+                        data: session,
+                    };
+                },
                 after: async (session) => {
                     await ensureTutorProfileByUserId(session.userId);
                 },

@@ -3,6 +3,13 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const port = process.env.PORT || "5000";
+const defaultBackendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+
+function normalizeBetterAuthUrl(value: string): string {
+    return value.replace(/\/$/, "").endsWith("/api/auth/core")
+        ? value.replace(/\/$/, "")
+        : `${value.replace(/\/$/, "")}/api/auth/core`;
+}
 
 /**
  * Nodemailer / SMTP — set these in `.env` to send verification & password-reset mail.
@@ -44,9 +51,16 @@ export const env = {
             ? undefined
             : "dev-only-better-auth-secret-min-32-chars!"),
     BETTER_AUTH_URL:
-        process.env.BETTER_AUTH_URL ||
-        process.env.BACKEND_URL ||
-        `http://localhost:${port}`,
+        normalizeBetterAuthUrl(process.env.BETTER_AUTH_URL || defaultBackendUrl),
+    JWT_SECRET:
+        process.env.JWT_SECRET ??
+        (process.env.NODE_ENV === "production"
+            ? undefined
+            : "dev-only-jwt-secret-min-32-chars!"),
+    ACCESS_TOKEN_COOKIE_NAME:
+        process.env.ACCESS_TOKEN_COOKIE_NAME || "skillbridge_access_token",
+    REFRESH_TOKEN_COOKIE_NAME:
+        process.env.REFRESH_TOKEN_COOKIE_NAME || "skillbridge_refresh_token",
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
     CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,

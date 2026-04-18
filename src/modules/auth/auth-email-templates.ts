@@ -1,9 +1,9 @@
-export type AuthEmailKind = "verification" | "password_reset";
-
 import {
     escapeHtml,
     renderEmailLayout,
-} from "../services/email/email-template";
+} from "../../services/email/email-template";
+
+export type AuthEmailKind = "verification" | "password_reset";
 
 const brandName = "SkillBridge";
 

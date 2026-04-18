@@ -1,11 +1,8 @@
-import { sendMailQueued } from "../services/email";
+import { sendMailQueued } from "../../services/email";
 import { buildAuthEmail, type AuthEmailKind } from "./auth-email-templates";
 
 export type { AuthEmailKind } from "./auth-email-templates";
 
-/**
- * Auth transactional email (verification & password reset) with HTML + plain text.
- */
 export function sendAuthEmail(
     kind: AuthEmailKind,
     to: string,
