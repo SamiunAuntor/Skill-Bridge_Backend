@@ -61,6 +61,16 @@ export type SessionListSortOption =
     | "completed_only"
     | "cancelled_only";
 
+export const sessionSortOptions = [
+    "time_asc",
+    "time_desc",
+    "amount_high",
+    "amount_low",
+    "upcoming_only",
+    "completed_only",
+    "cancelled_only",
+] as const satisfies readonly SessionListSortOption[];
+
 export interface SessionListQuery {
     search?: string;
     sortBy: SessionListSortOption;

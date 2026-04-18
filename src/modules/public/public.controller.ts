@@ -1,20 +1,12 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
+import { asyncHandler } from "../../shared/controller/async-handler";
+import { sendSuccess } from "../../shared/controller/controller.utils";
 import { getLandingData } from "./public.services";
 
-export async function getLandingDataController(
-    req: Request,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        const data = await getLandingData();
-
-        res.status(200).json({
-            success: true,
-            message: "Landing data fetched successfully.",
-            data,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
+export const getLandingDataController = asyncHandler(async (
+    _req: Request,
+    res: Response
+): Promise<void> => {
+    const data = await getLandingData();
+    sendSuccess(res, "Landing data fetched successfully.", data);
+});

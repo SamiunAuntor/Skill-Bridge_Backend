@@ -2,6 +2,11 @@ import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
 import { HttpError } from "../../utils/http-error";
 import {
+    buildTutorDetailWhere,
+    buildTutorListPrismaQuery,
+    tutorQueryDefaults,
+} from "./tutor.query";
+import {
     TutorDetailResponse,
     TutorEditableProfileResponse,
     TutorListQuery,
@@ -10,105 +15,6 @@ import {
     TutorProfileUpdateInput,
     TutorSortOption,
 } from "./tutor.types";
-
-const defaultListPage = 1;
-const defaultListLimit = 10;
-
-function getTutorOrderBy(
-    sortBy: TutorSortOption
-): Prisma.TutorProfileOrderByWithRelationInput[] {
-    switch (sortBy) {
-        case "highest_rated":
-            return [{ averageRating: "desc" }, { totalReviews: "desc" }];
-        case "lowest_rated":
-            return [{ averageRating: "asc" }, { totalReviews: "desc" }];
-        case "lowest_price":
-            return [{ hourlyRate: "asc" }, { averageRating: "desc" }];
-        case "highest_price":
-            return [{ hourlyRate: "desc" }, { averageRating: "desc" }];
-        case "most_reviewed":
-            return [{ totalReviews: "desc" }, { averageRating: "desc" }];
-        case "recommended":
-        default:
-            return [
-                { isTopRated: "desc" },
-                { averageRating: "desc" },
-                { totalReviews: "desc" },
-                { hourlyRate: "asc" },
-            ];
-    }
-}
-
-function buildTutorWhereClause(
-    filters: TutorListQuery
-): Prisma.TutorProfileWhereInput {
-    const andClauses: Prisma.TutorProfileWhereInput[] = [];
-
-    const where: Prisma.TutorProfileWhereInput = {
-        deletedAt: null,
-        AND: andClauses,
-        user: {
-            isBanned: false,
-            deletedAt: null,
-            role: "tutor",
-        },
-    };
-
-    if (filters.subject) {
-        andClauses.push({
-            OR: [
-                {
-                    categories: {
-                        some: {
-                            category: {
-                                slug: filters.subject,
-                            },
-                        },
-                    },
-                },
-                {
-                    expertise: {
-                        some: {
-                            slug: filters.subject,
-                        },
-                    },
-                },
-            ],
-        });
-    }
-
-    if (typeof filters.minPrice === "number" || typeof filters.maxPrice === "number") {
-        where.hourlyRate = {};
-
-        if (typeof filters.minPrice === "number") {
-            where.hourlyRate.gte = filters.minPrice;
-        }
-
-        if (typeof filters.maxPrice === "number") {
-            where.hourlyRate.lte = filters.maxPrice;
-        }
-    }
-
-    if (typeof filters.minRating === "number") {
-        where.averageRating = {
-            gte: filters.minRating,
-        };
-    }
-
-    if (filters.availability) {
-        where.availability = {
-            some: {
-                isBooked: false,
-                deletedAt: null,
-                startAt: {
-                    gte: new Date(),
-                },
-            },
-        };
-    }
-
-    return where;
-}
 
 function toDisplayName(input: {
     name: string;
@@ -311,18 +217,20 @@ export async function getTutors(
 ): Promise<TutorListResponse> {
     await syncTutorProfileStats();
 
-    const skip = (filters.page - defaultListPage) * filters.limit;
-    const where = buildTutorWhereClause(filters);
-    const orderBy = getTutorOrderBy(filters.sortBy);
+    const queryBuilder = buildTutorListPrismaQuery(filters);
     const now = new Date();
 
     const [totalItems, tutors] = await Promise.all([
-        prisma.tutorProfile.count({ where }),
+        prisma.tutorProfile.count({ where: queryBuilder.where }),
         prisma.tutorProfile.findMany({
-            where,
-            orderBy,
-            skip,
-            take: filters.limit,
+            where: queryBuilder.where,
+            orderBy: queryBuilder.orderBy,
+            ...(queryBuilder.pagination
+                ? {
+                      skip: queryBuilder.pagination.skip,
+                      take: queryBuilder.pagination.take,
+                  }
+                : {}),
             include: {
                 user: true,
                 categories: {
@@ -397,16 +305,10 @@ export async function getTutorById(
     await syncTutorProfileStats(tutorId);
 
     const now = new Date();
+    const detailWhere = buildTutorDetailWhere(tutorId);
 
     const tutor = await prisma.tutorProfile.findFirst({
-        where: {
-            ...buildTutorWhereClause({
-                sortBy: "recommended",
-                page: 1,
-                limit: 1,
-            }),
-            id: tutorId,
-        },
+        where: detailWhere,
         include: {
             user: true,
             categories: {
@@ -810,6 +712,6 @@ export async function getTutorSubjectOptions(): Promise<TutorSubjectOption[]> {
 }
 
 export const tutorDefaults = {
-    page: defaultListPage,
-    limit: defaultListLimit,
+    page: tutorQueryDefaults.page,
+    limit: tutorQueryDefaults.limit,
 };

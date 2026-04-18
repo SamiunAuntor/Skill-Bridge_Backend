@@ -11,6 +11,10 @@ import { prisma } from "../../config/prisma.config";
 import { createZoomMeeting, deleteZoomMeeting } from "../../services/zoom/zoom.service";
 import { HttpError } from "../../utils/http-error";
 import {
+    buildSessionListPrismaQuery,
+    buildSessionStatsBaseWhere,
+} from "./booking.query";
+import {
     BookingConfirmationResponse,
     CancelBookingResponse,
     CreateBookingInput,
@@ -505,165 +509,17 @@ export async function getMySessions(
         throw new HttpError(403, "Sessions are only available for tutors and students.");
     }
 
-    const search = filters.search?.trim();
-    const normalizedSearch = search?.toLowerCase();
-    const numericSearch =
-        normalizedSearch && !Number.isNaN(Number(normalizedSearch))
-            ? Number(normalizedSearch)
-            : null;
-
-    const baseWhere: Prisma.BookingWhereInput =
-        role === Role.student
-            ? {
-                  studentId: userId,
-                  deletedAt: null,
-                  session: {
-                      isNot: null,
-                  },
-              }
-            : {
-                  deletedAt: null,
-                  tutor: {
-                      userId,
-                      deletedAt: null,
-                  },
-                  session: {
-                      isNot: null,
-                  },
-              };
-
-    const filteredWhere: Prisma.BookingWhereInput = {
-        ...baseWhere,
-    };
-
-    if (search) {
-        const searchConditions: Prisma.BookingWhereInput[] =
-            role === Role.student
-                ? [
-                      {
-                          tutor: {
-                              user: {
-                                  name: {
-                                      contains: search,
-                                      mode: "insensitive",
-                                  },
-                              },
-                          },
-                      },
-                      {
-                          tutor: {
-                              user: {
-                                  firstName: {
-                                      contains: search,
-                                      mode: "insensitive",
-                                  },
-                              },
-                          },
-                      },
-                      {
-                          tutor: {
-                              user: {
-                                  lastName: {
-                                      contains: search,
-                                      mode: "insensitive",
-                                  },
-                              },
-                          },
-                      },
-                      {
-                          tutor: {
-                              user: {
-                                  email: {
-                                      contains: search,
-                                      mode: "insensitive",
-                                  },
-                              },
-                          },
-                      },
-                  ]
-                : [
-                      {
-                          student: {
-                              name: {
-                                  contains: search,
-                                  mode: "insensitive",
-                              },
-                          },
-                      },
-                      {
-                          student: {
-                              firstName: {
-                                  contains: search,
-                                  mode: "insensitive",
-                              },
-                          },
-                      },
-                      {
-                          student: {
-                              lastName: {
-                                  contains: search,
-                                  mode: "insensitive",
-                              },
-                          },
-                      },
-                      {
-                          student: {
-                              email: {
-                                  contains: search,
-                                  mode: "insensitive",
-                              },
-                          },
-                      },
-                  ];
-
-        if (numericSearch !== null) {
-            searchConditions.push({
-                priceAtBooking: numericSearch,
-            });
-        }
-
-        filteredWhere.AND = [
-            ...(Array.isArray(filteredWhere.AND) ? filteredWhere.AND : []),
-            {
-                OR: searchConditions,
-            },
-        ];
-    }
-
-    if (filters.sortBy === "upcoming_only") {
-        filteredWhere.session = {
-            is: {
-                status: {
-                    in: [SessionStatus.scheduled, SessionStatus.ongoing],
-                },
-            },
-        };
-    } else if (filters.sortBy === "completed_only") {
-        filteredWhere.session = {
-            is: {
-                status: SessionStatus.completed,
-            },
-        };
-    } else if (filters.sortBy === "cancelled_only") {
-        filteredWhere.session = {
-            is: {
-                status: SessionStatus.cancelled,
-            },
-        };
-    }
-
-    const orderBy: Prisma.BookingOrderByWithRelationInput[] =
-        filters.sortBy === "amount_high"
-            ? [{ priceAtBooking: "desc" }, { startTime: "asc" }]
-            : filters.sortBy === "amount_low"
-            ? [{ priceAtBooking: "asc" }, { startTime: "asc" }]
-            : filters.sortBy === "time_desc"
-            ? [{ startTime: "desc" }, { createdAt: "desc" }]
-            : [{ startTime: "asc" }, { createdAt: "desc" }];
+    const roleForQueryBuilder = role === Role.student ? "student" : "tutor";
+    const baseWhere = buildSessionStatsBaseWhere(userId, roleForQueryBuilder);
+    const queryBuilder = buildSessionListPrismaQuery(
+        userId,
+        roleForQueryBuilder,
+        filters
+    );
 
     const sessions = await prisma.booking.findMany({
-        where: filteredWhere,
-        orderBy,
+        where: queryBuilder.where,
+        orderBy: queryBuilder.orderBy,
         select: {
             id: true,
             status: true,

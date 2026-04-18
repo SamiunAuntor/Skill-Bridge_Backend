@@ -1,6 +1,8 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import { HttpError } from "../../utils/http-error";
+import { asyncHandler } from "../../shared/controller/async-handler";
+import { requireAuthUser, sendSuccess } from "../../shared/controller/controller.utils";
+import { validateRequest } from "../../shared/validation/validate-request";
 import {
     createAvailabilitySlot,
     deleteAvailabilitySlot,
@@ -8,160 +10,63 @@ import {
     getPublicTutorAvailability,
     updateAvailabilitySlot,
 } from "./availability.services";
+import {
+    availabilitySlotSchema,
+    slotIdParamsSchema,
+    tutorAvailabilityParamsSchema,
+} from "./availability.validation";
 
-function parseIsoDateTime(value: unknown, fieldName: string): Date {
-    if (typeof value !== "string" || value.trim().length === 0) {
-        throw new HttpError(400, `${fieldName} is required.`);
-    }
-
-    const parsed = new Date(value);
-
-    if (Number.isNaN(parsed.getTime())) {
-        throw new HttpError(400, `${fieldName} must be a valid ISO date-time.`);
-    }
-
-    return parsed;
-}
-
-export async function getMyAvailabilityController(
+export const getMyAvailabilityController = asyncHandler(async (
     req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
+    res: Response
+): Promise<void> => {
+    const authUser = requireAuthUser(req);
+    const result = await getMyAvailability(authUser.id);
+    sendSuccess(res, "Availability fetched successfully.", result);
+});
 
-        const result = await getMyAvailability(req.authUser.id);
-
-        res.status(200).json({
-            success: true,
-            message: "Availability fetched successfully.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function createAvailabilitySlotController(
+export const createAvailabilitySlotController = asyncHandler(async (
     req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
+    res: Response
+): Promise<void> => {
+    const authUser = requireAuthUser(req);
+    const body = validateRequest(availabilitySlotSchema, req.body);
+    const result = await createAvailabilitySlot(authUser.id, {
+        startAt: body.startAt,
+        endAt: body.endAt,
+    });
+    sendSuccess(res, "Availability slot created successfully.", result, 201);
+});
 
-        if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
-            throw new HttpError(400, "Invalid availability payload.");
-        }
-
-        const body = req.body as Record<string, unknown>;
-        const result = await createAvailabilitySlot(req.authUser.id, {
-            startAt: parseIsoDateTime(body.startAt, "startAt"),
-            endAt: parseIsoDateTime(body.endAt, "endAt"),
-        });
-
-        res.status(201).json({
-            success: true,
-            message: "Availability slot created successfully.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function deleteAvailabilitySlotController(
+export const deleteAvailabilitySlotController = asyncHandler(async (
     req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
+    res: Response
+): Promise<void> => {
+    const authUser = requireAuthUser(req);
+    const { slotId } = validateRequest(slotIdParamsSchema, req.params);
+    await deleteAvailabilitySlot(authUser.id, slotId);
+    sendSuccess(res, "Availability slot deleted successfully.", null);
+});
 
-        const slotId =
-            typeof req.params.slotId === "string" ? req.params.slotId.trim() : "";
-
-        if (!slotId) {
-            throw new HttpError(400, "slotId is required.");
-        }
-
-        await deleteAvailabilitySlot(req.authUser.id, slotId);
-
-        res.status(200).json({
-            success: true,
-            message: "Availability slot deleted successfully.",
-            data: null,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function updateAvailabilitySlotController(
+export const updateAvailabilitySlotController = asyncHandler(async (
     req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
+    res: Response
+): Promise<void> => {
+    const authUser = requireAuthUser(req);
+    const { slotId } = validateRequest(slotIdParamsSchema, req.params);
+    const body = validateRequest(availabilitySlotSchema, req.body);
+    const result = await updateAvailabilitySlot(authUser.id, slotId, {
+        startAt: body.startAt,
+        endAt: body.endAt,
+    });
+    sendSuccess(res, "Availability slot updated successfully.", result);
+});
 
-        const slotId =
-            typeof req.params.slotId === "string" ? req.params.slotId.trim() : "";
-
-        if (!slotId) {
-            throw new HttpError(400, "slotId is required.");
-        }
-
-        if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
-            throw new HttpError(400, "Invalid availability payload.");
-        }
-
-        const body = req.body as Record<string, unknown>;
-        const result = await updateAvailabilitySlot(req.authUser.id, slotId, {
-            startAt: parseIsoDateTime(body.startAt, "startAt"),
-            endAt: parseIsoDateTime(body.endAt, "endAt"),
-        });
-
-        res.status(200).json({
-            success: true,
-            message: "Availability slot updated successfully.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function getPublicTutorAvailabilityController(
+export const getPublicTutorAvailabilityController = asyncHandler(async (
     req: Request,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        const tutorId =
-            typeof req.params.tutorId === "string" ? req.params.tutorId.trim() : "";
-
-        if (!tutorId) {
-            throw new HttpError(400, "Tutor id is required.");
-        }
-
-        const result = await getPublicTutorAvailability(tutorId);
-
-        res.status(200).json({
-            success: true,
-            message: "Tutor availability fetched successfully.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
+    res: Response
+): Promise<void> => {
+    const { tutorId } = validateRequest(tutorAvailabilityParamsSchema, req.params);
+    const result = await getPublicTutorAvailability(tutorId);
+    sendSuccess(res, "Tutor availability fetched successfully.", result);
+});

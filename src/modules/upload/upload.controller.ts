@@ -1,11 +1,14 @@
 import { NextFunction, Response } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import { HttpError } from "../../utils/http-error";
+import { asyncHandler } from "../../shared/controller/async-handler";
+import { requireAuthUser, sendSuccess } from "../../shared/controller/controller.utils";
+import { validateRequest } from "../../shared/validation/validate-request";
 import {
     deleteUploadedAsset,
     toUploadedAssetPayload,
     UploadResourceType,
 } from "./upload.services";
+import { deleteUploadedAssetSchema } from "./upload.validation";
 
 async function respondWithUploadedAsset(
     req: AuthenticatedRequest,
@@ -15,17 +18,11 @@ async function respondWithUploadedAsset(
     successMessage: string
 ): Promise<void> {
     try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
+        requireAuthUser(req);
 
         const uploadedAsset = toUploadedAssetPayload(req.file, resourceType);
 
-        res.status(200).json({
-            success: true,
-            message: successMessage,
-            data: uploadedAsset,
-        });
+        sendSuccess(res, successMessage, uploadedAsset);
     } catch (error) {
         try {
             const uploadedAsset = toUploadedAssetPayload(req.file, resourceType);
@@ -41,11 +38,11 @@ async function respondWithUploadedAsset(
     }
 }
 
-export async function uploadImageController(
+export const uploadImageController = asyncHandler(async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
-): Promise<void> {
+): Promise<void> => {
     await respondWithUploadedAsset(
         req,
         res,
@@ -53,13 +50,13 @@ export async function uploadImageController(
         "image",
         "Image uploaded successfully."
     );
-}
+});
 
-export async function uploadPdfController(
+export const uploadPdfController = asyncHandler(async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
-): Promise<void> {
+): Promise<void> => {
     await respondWithUploadedAsset(
         req,
         res,
@@ -67,37 +64,22 @@ export async function uploadPdfController(
         "raw",
         "PDF uploaded successfully."
     );
-}
+});
 
-export async function deleteUploadedAssetController(
+export const deleteUploadedAssetController = asyncHandler(async (
     req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
+    res: Response
+): Promise<void> => {
+    requireAuthUser(req);
+    const { publicId, resourceType } = validateRequest(
+        deleteUploadedAssetSchema,
+        req.body
+    );
 
-        const publicId =
-            typeof req.body?.publicId === "string" ? req.body.publicId.trim() : "";
-        const resourceType =
-            req.body?.resourceType === "raw" ? "raw" : req.body?.resourceType === "image" ? "image" : null;
+    await deleteUploadedAsset({
+        publicId,
+        resourceType,
+    });
 
-        if (!publicId || !resourceType) {
-            throw new HttpError(400, "Uploaded file information is required.");
-        }
-
-        await deleteUploadedAsset({
-            publicId,
-            resourceType,
-        });
-
-        res.status(200).json({
-            success: true,
-            message: "Uploaded file removed successfully.",
-        });
-    } catch (error) {
-        next(error);
-    }
-}
+    sendSuccess(res, "Uploaded file removed successfully.", null);
+});

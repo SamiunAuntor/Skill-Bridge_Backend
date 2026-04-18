@@ -2,9 +2,9 @@ import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.middleware";
 import {
     getMyTutorProfileController,
-    getTutorDetails,
-    listTutorSubjectOptions,
-    listTutors,
+    getTutorDetailsController,
+    listTutorSubjectOptionsController,
+    listTutorsController,
     updateMyTutorProfileController,
 } from "./tutor.controller";
 
@@ -22,8 +22,8 @@ tutorRouter.put(
     requireRole("tutor"),
     updateMyTutorProfileController
 );
-tutorRouter.get("/subjects", listTutorSubjectOptions);
-tutorRouter.get("/", listTutors);
-tutorRouter.get("/:id", getTutorDetails);
+tutorRouter.get("/subjects", listTutorSubjectOptionsController);
+tutorRouter.get("/", listTutorsController);
+tutorRouter.get("/:id", getTutorDetailsController);
 
 export default tutorRouter;

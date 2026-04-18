@@ -1,6 +1,8 @@
-import { NextFunction, Response } from "express";
+import { Response } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import { HttpError } from "../../utils/http-error";
+import { asyncHandler } from "../../shared/controller/async-handler";
+import { requireAuthUser, sendSuccess } from "../../shared/controller/controller.utils";
+import { validateRequest } from "../../shared/validation/validate-request";
 import {
     cancelBooking,
     createBooking,
@@ -8,183 +10,61 @@ import {
     getTutorDashboardSummary,
     joinSession,
 } from "./booking.services";
-import { SessionListQuery, SessionListSortOption } from "./booking.types";
+import {
+    bookingIdParamsSchema,
+    createBookingSchema,
+    sessionListQuerySchema,
+} from "./booking.validation";
 
-const sessionSortOptions: SessionListSortOption[] = [
-    "time_asc",
-    "time_desc",
-    "amount_high",
-    "amount_low",
-    "upcoming_only",
-    "completed_only",
-    "cancelled_only",
-];
+export const createBookingController = asyncHandler(async (
+    req: AuthenticatedRequest,
+    res: Response
+): Promise<void> => {
+    const authUser = requireAuthUser(req);
+    const { tutorId, slotId } = validateRequest(createBookingSchema, req.body);
+    const result = await createBooking(authUser.id, { tutorId, slotId });
+    sendSuccess(res, "Booking created successfully.", result, 201);
+});
 
-function buildSessionListQuery(query: AuthenticatedRequest["query"]): SessionListQuery {
-    const search =
-        typeof query.q === "string" && query.q.trim().length > 0
-            ? query.q.trim()
-            : undefined;
-
-    const sortBy =
-        typeof query.sortBy === "string" &&
-        sessionSortOptions.includes(query.sortBy as SessionListSortOption)
-            ? (query.sortBy as SessionListSortOption)
-            : "time_asc";
-
-    return {
-        ...(search ? { search } : {}),
-        sortBy,
+export const getMySessionsController = asyncHandler(async (
+    req: AuthenticatedRequest,
+    res: Response
+): Promise<void> => {
+    const authUser = requireAuthUser(req);
+    const query = validateRequest(sessionListQuerySchema, req.query);
+    const filters = {
+        ...(query.q ? { search: query.q } : {}),
+        sortBy: query.sortBy,
     };
-}
+    const result = await getMySessions(authUser.id, authUser.role, filters);
+    sendSuccess(res, "Sessions fetched successfully.", result);
+});
 
-export async function createBookingController(
+export const getTutorDashboardSummaryController = asyncHandler(async (
     req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
+    res: Response
+): Promise<void> => {
+    const authUser = requireAuthUser(req);
+    const result = await getTutorDashboardSummary(authUser.id, authUser.role);
+    sendSuccess(res, "Tutor dashboard summary fetched successfully.", result);
+});
 
-        if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
-            throw new HttpError(400, "Invalid booking payload.");
-        }
-
-        const body = req.body as Record<string, unknown>;
-        const tutorId = typeof body.tutorId === "string" ? body.tutorId.trim() : "";
-        const slotId = typeof body.slotId === "string" ? body.slotId.trim() : "";
-
-        if (!tutorId) {
-            throw new HttpError(400, "tutorId is required.");
-        }
-
-        if (!slotId) {
-            throw new HttpError(400, "slotId is required.");
-        }
-
-        const result = await createBooking(req.authUser.id, {
-            tutorId,
-            slotId,
-        });
-
-        res.status(201).json({
-            success: true,
-            message: "Booking created successfully.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function getMySessionsController(
+export const cancelBookingController = asyncHandler(async (
     req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
+    res: Response
+): Promise<void> => {
+    const authUser = requireAuthUser(req);
+    const { bookingId } = validateRequest(bookingIdParamsSchema, req.params);
+    const result = await cancelBooking(authUser.id, authUser.role, bookingId);
+    sendSuccess(res, "Booking cancelled successfully.", result);
+});
 
-        const filters = buildSessionListQuery(req.query);
-        const result = await getMySessions(req.authUser.id, req.authUser.role, filters);
-
-        res.status(200).json({
-            success: true,
-            message: "Sessions fetched successfully.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function getTutorDashboardSummaryController(
+export const joinSessionController = asyncHandler(async (
     req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
-
-        const result = await getTutorDashboardSummary(
-            req.authUser.id,
-            req.authUser.role
-        );
-
-        res.status(200).json({
-            success: true,
-            message: "Tutor dashboard summary fetched successfully.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function cancelBookingController(
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
-
-        const bookingId =
-            typeof req.params.bookingId === "string" ? req.params.bookingId.trim() : "";
-
-        if (!bookingId) {
-            throw new HttpError(400, "bookingId is required.");
-        }
-
-        const result = await cancelBooking(
-            req.authUser.id,
-            req.authUser.role,
-            bookingId
-        );
-
-        res.status(200).json({
-            success: true,
-            message: "Booking cancelled successfully.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function joinSessionController(
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): Promise<void> {
-    try {
-        if (!req.authUser) {
-            throw new HttpError(401, "Unauthorized");
-        }
-
-        const bookingId =
-            typeof req.params.bookingId === "string" ? req.params.bookingId.trim() : "";
-
-        if (!bookingId) {
-            throw new HttpError(400, "bookingId is required.");
-        }
-
-        const result = await joinSession(req.authUser.id, req.authUser.role, bookingId);
-
-        res.status(200).json({
-            success: true,
-            message: "Session join prepared successfully.",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
+    res: Response
+): Promise<void> => {
+    const authUser = requireAuthUser(req);
+    const { bookingId } = validateRequest(bookingIdParamsSchema, req.params);
+    const result = await joinSession(authUser.id, authUser.role, bookingId);
+    sendSuccess(res, "Session join prepared successfully.", result);
+});
