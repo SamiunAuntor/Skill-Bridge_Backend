@@ -1,13 +1,10 @@
 import { prisma } from "../../config/prisma.config";
+import { normalizeText } from "../../shared/utils";
 import { HttpError } from "../../utils/http-error";
 import {
     StudentProfileResponse,
     UpdateStudentProfileInput,
 } from "./student.types";
-
-function normalizeText(value: unknown): string {
-    return typeof value === "string" ? value.trim() : "";
-}
 
 function splitFullName(fullName: string): {
     name: string;

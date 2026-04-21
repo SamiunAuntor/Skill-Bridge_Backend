@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma.config";
+import { normalizeText, toDisplayName } from "../../shared/utils";
 import { HttpError } from "../../utils/http-error";
 import {
     buildTutorDetailWhere,
@@ -13,20 +14,6 @@ import {
     TutorProfileUpdateInput,
     TutorSubjectOption,
 } from "./tutor.types";
-
-function toDisplayName(input: {
-    name: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string;
-}): string {
-    const fullName = `${input.firstName ?? ""} ${input.lastName ?? ""}`.trim();
-    return fullName || normalizeText(input.name) || input.email;
-}
-
-function normalizeText(value: unknown): string {
-    return typeof value === "string" ? value.trim() : "";
-}
 
 function toPublicBio(bio: unknown): string {
     const normalizedBio = normalizeText(bio);
@@ -101,6 +88,7 @@ type TutorStatsSnapshot = {
     averageRating: number;
     totalReviews: number;
     totalHoursTaught: number;
+    totalEarnings: number;
     isTopRated: boolean;
 };
 
@@ -150,6 +138,7 @@ export async function syncTutorProfileStats(targetTutorId?: string): Promise<voi
                 booking: {
                     select: {
                         tutorId: true,
+                        priceAtBooking: true,
                         startTime: true,
                         endTime: true,
                     },
@@ -165,6 +154,7 @@ export async function syncTutorProfileStats(targetTutorId?: string): Promise<voi
             averageRating: 0,
             totalReviews: 0,
             totalHoursTaught: 0,
+            totalEarnings: 0,
             isTopRated: false,
         });
     }
@@ -213,10 +203,12 @@ export async function syncTutorProfileStats(targetTutorId?: string): Promise<voi
                   (1000 * 60 * 60);
 
         snapshot.totalHoursTaught += Math.max(durationHours, 0);
+        snapshot.totalEarnings += session.booking.priceAtBooking;
     }
 
     for (const [tutorId, snapshot] of statsByTutor.entries()) {
         snapshot.totalHoursTaught = Number(snapshot.totalHoursTaught.toFixed(2));
+        snapshot.totalEarnings = Number(snapshot.totalEarnings.toFixed(2));
         snapshot.isTopRated = computeIsTopRated(
             snapshot.averageRating,
             snapshot.totalReviews
@@ -231,6 +223,7 @@ export async function syncTutorProfileStats(targetTutorId?: string): Promise<voi
                     averageRating: snapshot.averageRating,
                     totalReviews: snapshot.totalReviews,
                     totalHoursTaught: snapshot.totalHoursTaught,
+                    totalEarnings: snapshot.totalEarnings,
                     isTopRated: snapshot.isTopRated,
                 },
             })
@@ -241,8 +234,6 @@ export async function syncTutorProfileStats(targetTutorId?: string): Promise<voi
 export async function getTutors(
     filters: TutorListQuery
 ): Promise<TutorListResponse> {
-    await syncTutorProfileStats();
-
     const queryBuilder = buildTutorListPrismaQuery(filters);
     const now = new Date();
 

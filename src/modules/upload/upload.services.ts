@@ -1,5 +1,7 @@
 import { randomUUID } from "crypto";
+import { jwtVerify, SignJWT } from "jose";
 import { cloudinary } from "../../lib/cloudinary";
+import { env } from "../../config/env";
 import { HttpError } from "../../utils/http-error";
 
 export type UploadResourceType = "image" | "raw";
@@ -10,6 +12,7 @@ export interface UploadedAssetPayload {
     originalName: string;
     resourceType: UploadResourceType;
     bytes: number;
+    deleteToken: string;
 }
 
 export interface UploadedCloudinaryFile {
@@ -23,6 +26,15 @@ export interface DeleteUploadedAssetInput {
     publicId: string;
     resourceType: UploadResourceType;
 }
+
+type UploadedAssetDeleteTokenPayload = {
+    publicId: string;
+    resourceType: UploadResourceType;
+    userId: string;
+    typ: "uploaded-asset-delete";
+};
+
+const uploadDeleteTokenSecret = new TextEncoder().encode(env.JWT_SECRET);
 
 export function createUploadPublicId(originalName?: string): string {
     const baseName = (originalName ?? "asset")
@@ -52,6 +64,47 @@ export function toUploadedAssetPayload(
         originalName: file.originalname ?? "uploaded-file",
         resourceType,
         bytes: file.size ?? 0,
+        deleteToken: "",
+    };
+}
+
+export async function createUploadedAssetDeleteToken(input: {
+    publicId: string;
+    resourceType: UploadResourceType;
+    userId: string;
+}): Promise<string> {
+    return new SignJWT({
+        publicId: input.publicId,
+        resourceType: input.resourceType,
+        userId: input.userId,
+        typ: "uploaded-asset-delete",
+    } satisfies UploadedAssetDeleteTokenPayload)
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime("30m")
+        .sign(uploadDeleteTokenSecret);
+}
+
+export async function verifyUploadedAssetDeleteToken(
+    token: string
+): Promise<UploadedAssetDeleteTokenPayload> {
+    const result = await jwtVerify(token, uploadDeleteTokenSecret);
+    const payload = result.payload;
+
+    if (
+        typeof payload.publicId !== "string" ||
+        (payload.resourceType !== "image" && payload.resourceType !== "raw") ||
+        typeof payload.userId !== "string" ||
+        payload.typ !== "uploaded-asset-delete"
+    ) {
+        throw new HttpError(401, "Uploaded file authorization is invalid or expired.");
+    }
+
+    return {
+        publicId: payload.publicId,
+        resourceType: payload.resourceType,
+        userId: payload.userId,
+        typ: "uploaded-asset-delete",
     };
 }
 

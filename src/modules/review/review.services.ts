@@ -1,12 +1,9 @@
 import { prisma } from "../../config/prisma.config";
 import { BookingStatus, NotificationChannel, NotificationStatus, NotificationType, Role, SessionStatus } from "../../generated/prisma/client";
+import { normalizeText } from "../../shared/utils";
 import { syncTutorProfileStats } from "../tutor/tutor.services";
 import { HttpError } from "../../utils/http-error";
 import { CreateReviewInput, CreateReviewResponse } from "./review.types";
-
-function normalizeText(value: unknown): string {
-    return typeof value === "string" ? value.trim() : "";
-}
 
 export async function createReview(
     studentId: string,

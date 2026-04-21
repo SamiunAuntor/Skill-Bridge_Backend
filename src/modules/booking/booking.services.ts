@@ -9,7 +9,9 @@ import {
 } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
 import { createZoomMeeting, deleteZoomMeeting } from "../../services/zoom/zoom.service";
+import { formatDateTime, formatMoney, toDisplayName } from "../../shared/utils";
 import { HttpError } from "../../utils/http-error";
+import { syncTutorProfileStats } from "../tutor/tutor.services";
 import {
     buildSessionListPrismaQuery,
     buildSessionStatsBaseWhere,
@@ -32,42 +34,13 @@ function calculatePrice(hourlyRate: number, startAt: Date, endAt: Date): number 
     return Number((hourlyRate * Math.max(durationHours, 0)).toFixed(2));
 }
 
-function formatDateTime(value: Date): string {
-    return new Intl.DateTimeFormat("en-BD", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(value);
-}
-
-function formatMoney(amount: number): string {
-    return `$${amount.toFixed(2)}`;
-}
-
 function normalizeDisplayName(input: {
     name: string;
     firstName: string | null;
     lastName: string | null;
     email: string;
 }): string {
-    const name = input.name?.trim();
-    if (name) {
-        return name;
-    }
-
-    const fullName = [input.firstName?.trim(), input.lastName?.trim()]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-
-    if (fullName) {
-        return fullName;
-    }
-
-    return input.email;
+    return toDisplayName(input);
 }
 
 function mapSessionListItem(input: {
@@ -1066,6 +1039,7 @@ export async function joinSession(
                   },
         select: {
             id: true,
+            tutorId: true,
             startTime: true,
             endTime: true,
             status: true,
@@ -1147,6 +1121,7 @@ export async function joinSession(
         });
 
         nextStatus = completed;
+        await syncTutorProfileStats(booking.tutorId);
     }
 
     const sessionStatus: "ongoing" | "completed" =

@@ -1,28 +1,11 @@
 import { prisma } from "../../config/prisma.config";
+import { normalizeText, toDisplayName } from "../../shared/utils";
 import { HttpError } from "../../utils/http-error";
 import {
     PublicLandingResponse,
     PublicSubjectDetailResponse,
     PublicSubjectsResponse,
 } from "./public.types";
-
-function normalizeText(value: unknown): string {
-    return typeof value === "string" ? value.trim() : "";
-}
-
-function toDisplayName(input: {
-    name: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string;
-}): string {
-    const fullName = [input.firstName?.trim(), input.lastName?.trim()]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-
-    return fullName || normalizeText(input.name) || input.email;
-}
 
 function toPublicBio(bio: unknown): string {
     return normalizeText(bio) || "This tutor is setting up their public profile.";

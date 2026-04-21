@@ -5,4 +5,5 @@ export const deleteUploadedAssetSchema = z.object({
     resourceType: z.enum(["image", "raw"], {
         error: "Uploaded file resource type is required.",
     }),
+    deleteToken: z.string().trim().min(1, "Uploaded file authorization is required."),
 });

@@ -11,6 +11,16 @@ function normalizeBetterAuthUrl(value: string): string {
         : `${value.replace(/\/$/, "")}/api/auth/core`;
 }
 
+function requireEnv(name: string, fallback?: string): string {
+    const value = process.env[name]?.trim() || fallback;
+
+    if (!value) {
+        throw new Error(`Missing required environment variable: ${name}`);
+    }
+
+    return value;
+}
+
 /**
  * Nodemailer / SMTP — set these in `.env` to send verification & password-reset mail.
  * See `.env.example` for common providers (Gmail, SendGrid, Mailtrap).
@@ -45,18 +55,20 @@ export const env = {
     BACKEND_URL: process.env.BACKEND_URL,
     FRONTEND_URL: process.env.FRONTEND_URL,
     DATABASE_URL: process.env.DATABASE_URL,
-    BETTER_AUTH_SECRET:
-        process.env.BETTER_AUTH_SECRET ??
-        (process.env.NODE_ENV === "production"
+    BETTER_AUTH_SECRET: requireEnv(
+        "BETTER_AUTH_SECRET",
+        process.env.NODE_ENV === "production"
             ? undefined
-            : "dev-only-better-auth-secret-min-32-chars!"),
+            : "dev-only-better-auth-secret-min-32-chars!"
+    ),
     BETTER_AUTH_URL:
         normalizeBetterAuthUrl(process.env.BETTER_AUTH_URL || defaultBackendUrl),
-    JWT_SECRET:
-        process.env.JWT_SECRET ??
-        (process.env.NODE_ENV === "production"
+    JWT_SECRET: requireEnv(
+        "JWT_SECRET",
+        process.env.NODE_ENV === "production"
             ? undefined
-            : "dev-only-jwt-secret-min-32-chars!"),
+            : "dev-only-jwt-secret-min-32-chars!"
+    ),
     ACCESS_TOKEN_COOKIE_NAME:
         process.env.ACCESS_TOKEN_COOKIE_NAME || "skillbridge_access_token",
     REFRESH_TOKEN_COOKIE_NAME:

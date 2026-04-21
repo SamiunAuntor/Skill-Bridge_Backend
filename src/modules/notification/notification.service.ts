@@ -7,26 +7,13 @@ import {
 } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
 import { sendMail } from "../../services/email";
+import { formatDateTime, formatMoney, toDisplayName } from "../../shared/utils";
+import { syncTutorProfileStats } from "../tutor/tutor.services";
 import {
     escapeHtml,
     renderEmailDetailRows,
     renderEmailLayout,
 } from "../../services/email/email-template";
-
-function formatDateTime(value: Date): string {
-    return new Intl.DateTimeFormat("en-BD", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(value);
-}
-
-function formatMoney(amount: number): string {
-    return `$${amount.toFixed(2)}`;
-}
 
 function normalizeDisplayName(input: {
     name: string;
@@ -34,21 +21,7 @@ function normalizeDisplayName(input: {
     lastName: string | null;
     email: string;
 }): string {
-    const name = input.name?.trim();
-    if (name) {
-        return name;
-    }
-
-    const fullName = [input.firstName?.trim(), input.lastName?.trim()]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-
-    if (fullName) {
-        return fullName;
-    }
-
-    return input.email;
+    return toDisplayName(input);
 }
 
 function calculateDurationHours(startTime: Date, endTime: Date): number {
@@ -356,6 +329,7 @@ export async function completeExpiredSessions(): Promise<number> {
         },
         select: {
             id: true,
+            tutorId: true,
             startTime: true,
             endTime: true,
             session: {
@@ -407,6 +381,12 @@ export async function completeExpiredSessions(): Promise<number> {
             maxWait: 10000,
             timeout: 20000,
         }
+    );
+
+    await Promise.all(
+        [...new Set(expiredBookings.map((booking) => booking.tutorId))].map((tutorId) =>
+            syncTutorProfileStats(tutorId)
+        )
     );
 
     return expiredBookings.length;

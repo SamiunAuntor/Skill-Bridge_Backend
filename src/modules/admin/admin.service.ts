@@ -1,5 +1,6 @@
 import { BookingStatus, PaymentStatus } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
+import { toDisplayName } from "../../shared/utils";
 import { HttpError } from "../../utils/http-error";
 import {
     buildAdminBookingsQuery,
@@ -47,21 +48,50 @@ function getPagination(page: number, limit: number, totalItems: number) {
     };
 }
 
-function toDisplayName(input: {
-    name: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string;
-}): string {
-    const fullName = [input.firstName?.trim(), input.lastName?.trim()]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
+function buildLastSixMonthBuckets(): Array<{
+    label: string;
+    start: Date;
+    end: Date;
+}> {
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    return fullName || input.name.trim() || input.email;
+    return Array.from({ length: 6 }, (_, index) => {
+        const offset = 5 - index;
+        const start = new Date(
+            currentMonthStart.getFullYear(),
+            currentMonthStart.getMonth() - offset,
+            1
+        );
+        const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+
+        return {
+            label: new Intl.DateTimeFormat("en-BD", {
+                month: "short",
+                year: "2-digit",
+            }).format(start),
+            start,
+            end,
+        };
+    });
+}
+
+function buildMonthlyTrend(
+    dates: Date[],
+    buckets: ReturnType<typeof buildLastSixMonthBuckets>
+) {
+    return buckets.map((bucket) => ({
+        label: bucket.label,
+        count: dates.filter(
+            (value) => value >= bucket.start && value < bucket.end
+        ).length,
+    }));
 }
 
 export async function getAdminDashboardData(): Promise<AdminDashboardResponse> {
+    const monthBuckets = buildLastSixMonthBuckets();
+    const trendStartDate = monthBuckets[0]?.start ?? new Date();
+
     const [
         totalUsers,
         totalStudents,
@@ -70,6 +100,11 @@ export async function getAdminDashboardData(): Promise<AdminDashboardResponse> {
         totalCategories,
         totalSubjects,
         totalDegrees,
+        bannedUsers,
+        studentRegistrations,
+        tutorRegistrations,
+        bookingCreations,
+        bookingStatusBreakdown,
     ] = await Promise.all([
         prisma.user.count({
             where: {
@@ -99,6 +134,59 @@ export async function getAdminDashboardData(): Promise<AdminDashboardResponse> {
         prisma.category.count(),
         prisma.subject.count(),
         prisma.degree.count(),
+        prisma.user.count({
+            where: {
+                deletedAt: null,
+                isBanned: true,
+                role: {
+                    in: ["student", "tutor"],
+                },
+            },
+        }),
+        prisma.user.findMany({
+            where: {
+                deletedAt: null,
+                role: "student",
+                createdAt: {
+                    gte: trendStartDate,
+                },
+            },
+            select: {
+                createdAt: true,
+            },
+        }),
+        prisma.user.findMany({
+            where: {
+                deletedAt: null,
+                role: "tutor",
+                createdAt: {
+                    gte: trendStartDate,
+                },
+            },
+            select: {
+                createdAt: true,
+            },
+        }),
+        prisma.booking.findMany({
+            where: {
+                deletedAt: null,
+                createdAt: {
+                    gte: trendStartDate,
+                },
+            },
+            select: {
+                createdAt: true,
+            },
+        }),
+        prisma.booking.groupBy({
+            by: ["status"],
+            where: {
+                deletedAt: null,
+            },
+            _count: {
+                status: true,
+            },
+        }),
     ]);
 
     return {
@@ -110,6 +198,32 @@ export async function getAdminDashboardData(): Promise<AdminDashboardResponse> {
             totalCategories,
             totalSubjects,
             totalDegrees,
+            bannedUsers,
+        },
+        charts: {
+            studentRegistrations: buildMonthlyTrend(
+                studentRegistrations.map((item) => item.createdAt),
+                monthBuckets
+            ),
+            tutorRegistrations: buildMonthlyTrend(
+                tutorRegistrations.map((item) => item.createdAt),
+                monthBuckets
+            ),
+            bookingTrend: buildMonthlyTrend(
+                bookingCreations.map((item) => item.createdAt),
+                monthBuckets
+            ),
+            bookingStatusBreakdown: [
+                BookingStatus.confirmed,
+                BookingStatus.completed,
+                BookingStatus.cancelled,
+                BookingStatus.no_show,
+            ].map((status) => ({
+                status,
+                count:
+                    bookingStatusBreakdown.find((item) => item.status === status)?._count
+                        .status ?? 0,
+            })),
         },
     };
 }
