@@ -37,10 +37,12 @@ export interface TutorCard {
         name: string;
         slug: string;
     }>;
-    expertise: Array<{
+    subjects: Array<{
         id: string;
         name: string;
         slug: string;
+        categoryId: string;
+        categoryName: string;
     }>;
     hasAvailability: boolean;
     nextAvailableSlot: string | null;
@@ -80,10 +82,12 @@ export interface TutorDetailResponse {
             name: string;
             slug: string;
         }>;
-        expertise: Array<{
+        subjects: Array<{
             id: string;
             name: string;
             slug: string;
+            categoryId: string;
+            categoryName: string;
         }>;
         education: Array<{
             id: string;
@@ -119,14 +123,33 @@ export interface TutorEditableCategoryOption {
     slug: string;
 }
 
-export interface TutorEditableExpertiseItem {
+export interface TutorEditableSubjectOption {
     id: string;
+    categoryId: string;
+    name: string;
+    slug: string;
+    shortDescription: string | null;
+    iconKey: string | null;
+}
+
+export interface TutorEditableDegreeOption {
+    id: string;
+    name: string;
+    slug: string;
+    level: string | null;
+}
+
+export interface TutorEditableSubjectItem {
+    id: string;
+    subjectId: string;
+    categoryId: string;
     name: string;
     slug: string;
 }
 
 export interface TutorEditableEducationItem {
     id: string;
+    degreeId: string;
     degree: string;
     institution: string;
     fieldOfStudy: string;
@@ -147,28 +170,34 @@ export interface TutorEditableProfile {
     hourlyRate: number;
     experienceYears: number;
     categoryIds: string[];
-    expertise: TutorEditableExpertiseItem[];
+    subjects: TutorEditableSubjectItem[];
     education: TutorEditableEducationItem[];
 }
 
 export interface TutorEditableProfileResponse {
     profile: TutorEditableProfile;
     availableCategories: TutorEditableCategoryOption[];
+    availableSubjects: TutorEditableSubjectOption[];
+    availableDegrees: TutorEditableDegreeOption[];
 }
 
 export interface TutorSubjectOption {
     id: string;
     name: string;
     slug: string;
+    iconKey: string | null;
+    categoryId: string;
+    categoryName: string;
+    shortDescription: string | null;
 }
 
-export interface TutorProfileUpdateExpertiseInput {
-    id?: string;
-    name: string;
+export interface TutorProfileUpdateSubjectInput {
+    subjectId: string;
 }
 
 export interface TutorProfileUpdateEducationInput {
     id?: string;
+    degreeId: string;
     degree: string;
     institution: string;
     fieldOfStudy?: string | undefined;
@@ -184,6 +213,6 @@ export interface TutorProfileUpdateInput {
     hourlyRate: number;
     experienceYears: number;
     categoryIds: string[];
-    expertise: TutorProfileUpdateExpertiseInput[];
+    subjectIds: string[];
     education: TutorProfileUpdateEducationInput[];
 }

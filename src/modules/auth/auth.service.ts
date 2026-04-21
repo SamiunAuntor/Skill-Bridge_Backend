@@ -95,7 +95,7 @@ async function getValidSessionByToken(sessionToken: string) {
     if (!session.user || session.user.deletedAt || session.user.isBanned) {
         throw new HttpError(
             403,
-            "This account has been restricted. Please contact support."
+            "This account has been restricted. Please contact the platform authority."
         );
     }
 
@@ -112,7 +112,7 @@ function ensureAllowedToAuthenticate(
     if (user.isBanned) {
         throw new HttpError(
             403,
-            "This account has been restricted. Please contact support."
+            "This account has been restricted. Please contact the platform authority."
         );
     }
 

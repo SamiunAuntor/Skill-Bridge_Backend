@@ -5,6 +5,7 @@ import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
 import { auth } from "./modules/auth/auth.core";
 import authRouter from "./modules/auth/auth.router";
+import adminRouter from "./modules/admin/admin.router";
 import availabilityRouter from "./modules/availability/availability.router";
 import bookingRouter from "./modules/booking/booking.router";
 import publicRouter from "./modules/public/public.router";
@@ -27,6 +28,7 @@ app.all("/api/auth/core/{*any}", toNodeHandler(auth));
 
 app.use(express.json());
 app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRouter);
 app.use("/api/public", publicRouter);
 app.use("/api/availability", availabilityRouter);
 app.use("/api/bookings", bookingRouter);

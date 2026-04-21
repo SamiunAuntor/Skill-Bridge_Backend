@@ -124,7 +124,8 @@ model TutorProfile {
 
   categories   TutorCategory[]
   education    TutorEducation[]
-  expertise    TutorExpertise[]
+  subjects     TutorSubject[]
+  legacyExpertise LegacyTutorExpertise[]
   availability AvailabilitySlot[]
   bookings     Booking[]
   reviews      Review[]
@@ -141,8 +142,13 @@ model Category {
   name        String  @unique
   slug        String  @unique
   description String?
+  isActive    Boolean @default(true)
+  displayOrder Int    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  tutors TutorCategory[]
+  tutors   TutorCategory[]
+  subjects Subject[]
 }
 
 // TUTOR CATEGORY (M:N)
@@ -165,6 +171,7 @@ model TutorEducation {
   id String @id @default(uuid())
 
   tutorId String
+  degreeId String?
 
   degree       String
   institution  String
@@ -174,11 +181,44 @@ model TutorEducation {
   description  String?
 
   tutor TutorProfile @relation(fields: [tutorId], references: [id])
+  degreeOption Degree? @relation(fields: [degreeId], references: [id])
 }
 
-// TUTOR EXPERTISE
+model Subject {
+  id               String   @id @default(uuid())
+  categoryId       String
+  name             String
+  slug             String   @unique
+  shortDescription String?
+  longDescription  String?
+  iconKey          String?
+  heroImageUrl     String?
+  isActive         Boolean  @default(true)
+  displayOrder     Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-model TutorExpertise {
+  category Category @relation(fields: [categoryId], references: [id])
+  tutors   TutorSubject[]
+
+  @@unique([categoryId, name])
+  @@index([categoryId, isActive])
+}
+
+model TutorSubject {
+  id String @id @default(uuid())
+
+  tutorId   String
+  subjectId String
+
+  tutor   TutorProfile @relation(fields: [tutorId], references: [id])
+  subject Subject      @relation(fields: [subjectId], references: [id])
+
+  @@unique([tutorId, subjectId])
+  @@index([subjectId])
+}
+
+model LegacyTutorExpertise {
   id String @id @default(uuid())
 
   tutorId String
@@ -186,6 +226,21 @@ model TutorExpertise {
   slug    String
 
   tutor TutorProfile @relation(fields: [tutorId], references: [id])
+
+  @@map("TutorExpertise")
+}
+
+model Degree {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  slug         String   @unique
+  level        String?
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  educations TutorEducation[]
 }
 
 // AVAILABILITY

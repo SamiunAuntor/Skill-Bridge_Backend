@@ -1,4 +1,3 @@
-import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
 import { HttpError } from "../../utils/http-error";
 import {
@@ -11,9 +10,8 @@ import {
     TutorEditableProfileResponse,
     TutorListQuery,
     TutorListResponse,
-    TutorSubjectOption,
     TutorProfileUpdateInput,
-    TutorSortOption,
+    TutorSubjectOption,
 } from "./tutor.types";
 
 function toDisplayName(input: {
@@ -39,16 +37,64 @@ function toProfessionalTitle(value: unknown): string {
     return normalizeText(value) || "Professional Tutor";
 }
 
-function slugifyExpertiseName(name: string): string {
-    return name
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-}
-
 function computeIsTopRated(averageRating: number, totalReviews: number): boolean {
     return totalReviews >= 10 && averageRating >= 4.5;
+}
+
+function mapTutorSubject(item: {
+    subject: {
+        id: string;
+        name: string;
+        slug: string;
+        categoryId: string;
+        category: {
+            name: string;
+        };
+    };
+}) {
+    return {
+        id: item.subject.id,
+        name: item.subject.name,
+        slug: item.subject.slug,
+        categoryId: item.subject.categoryId,
+        categoryName: item.subject.category.name,
+    };
+}
+
+function mapLegacyTutorSubject(item: {
+    id: string;
+    name: string;
+    slug: string;
+}) {
+    return {
+        id: item.id,
+        name: item.name,
+        slug: item.slug,
+        categoryId: "",
+        categoryName: "Legacy Subject",
+    };
+}
+
+function toEditableEducation(input: {
+    id: string;
+    degreeId: string | null;
+    degree: string;
+    institution: string;
+    fieldOfStudy: string;
+    startYear: number;
+    endYear: number | null;
+    description: string | null;
+}) {
+    return {
+        id: input.id,
+        degreeId: input.degreeId ?? "",
+        degree: input.degree,
+        institution: input.institution,
+        fieldOfStudy: input.fieldOfStudy,
+        startYear: input.startYear,
+        endYear: input.endYear,
+        description: input.description,
+    };
 }
 
 type TutorStatsSnapshot = {
@@ -192,26 +238,6 @@ export async function syncTutorProfileStats(targetTutorId?: string): Promise<voi
     );
 }
 
-function toEditableEducation(input: {
-    id: string;
-    degree: string;
-    institution: string;
-    fieldOfStudy: string;
-    startYear: number;
-    endYear: number | null;
-    description: string | null;
-}) {
-    return {
-        id: input.id,
-        degree: input.degree,
-        institution: input.institution,
-        fieldOfStudy: input.fieldOfStudy,
-        startYear: input.startYear,
-        endYear: input.endYear,
-        description: input.description,
-    };
-}
-
 export async function getTutors(
     filters: TutorListQuery
 ): Promise<TutorListResponse> {
@@ -238,7 +264,25 @@ export async function getTutors(
                         category: true,
                     },
                 },
-                expertise: true,
+                subjects: {
+                    include: {
+                        subject: {
+                            include: {
+                                category: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        subject: {
+                            displayOrder: "asc",
+                        },
+                    },
+                },
+                legacyExpertise: {
+                    orderBy: {
+                        name: "asc",
+                    },
+                },
                 availability: {
                     where: {
                         isBooked: false,
@@ -259,34 +303,38 @@ export async function getTutors(
     const totalPages = Math.max(1, Math.ceil(totalItems / filters.limit));
 
     return {
-        tutors: tutors.map((tutor) => ({
-            id: tutor.id,
-            userId: tutor.userId,
-            displayName: toDisplayName(tutor.user),
-            professionalTitle: toProfessionalTitle(tutor.professionalTitle),
-            avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
-            bio: toPublicBio(tutor.bio),
-            hourlyRate: tutor.hourlyRate,
-            experienceYears: tutor.experienceYears,
-            averageRating: tutor.averageRating,
-            totalReviews: tutor.totalReviews,
-            isTopRated: computeIsTopRated(
-                tutor.averageRating,
-                tutor.totalReviews
-            ),
-            categories: tutor.categories.map(({ category }) => ({
-                id: category.id,
-                name: category.name,
-                slug: category.slug,
-            })),
-            expertise: tutor.expertise.map((item) => ({
-                id: item.id,
-                name: item.name,
-                slug: item.slug,
-            })),
-            hasAvailability: tutor.availability.length > 0,
-            nextAvailableSlot: tutor.availability[0]?.startAt.toISOString() ?? null,
-        })),
+        tutors: tutors.map((tutor) => {
+            const mappedSubjects =
+                tutor.subjects.length > 0
+                    ? tutor.subjects.map(mapTutorSubject)
+                    : tutor.legacyExpertise.map(mapLegacyTutorSubject);
+
+            return {
+                id: tutor.id,
+                userId: tutor.userId,
+                displayName: toDisplayName(tutor.user),
+                professionalTitle: toProfessionalTitle(tutor.professionalTitle),
+                avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
+                bio: toPublicBio(tutor.bio),
+                hourlyRate: tutor.hourlyRate,
+                experienceYears: tutor.experienceYears,
+                averageRating: tutor.averageRating,
+                totalReviews: tutor.totalReviews,
+                isTopRated: computeIsTopRated(
+                    tutor.averageRating,
+                    tutor.totalReviews
+                ),
+                categories: tutor.categories.map(({ category }) => ({
+                    id: category.id,
+                    name: category.name,
+                    slug: category.slug,
+                })),
+                subjects: mappedSubjects,
+                hasAvailability: tutor.availability.length > 0,
+                nextAvailableSlot:
+                    tutor.availability[0]?.startAt.toISOString() ?? null,
+            };
+        }),
         pagination: {
             page: filters.page,
             limit: filters.limit,
@@ -316,7 +364,28 @@ export async function getTutorById(
                     category: true,
                 },
             },
-            expertise: {
+            subjects: {
+                include: {
+                    subject: {
+                        include: {
+                            category: true,
+                        },
+                    },
+                },
+                orderBy: [
+                    {
+                        subject: {
+                            displayOrder: "asc",
+                        },
+                    },
+                    {
+                        subject: {
+                            name: "asc",
+                        },
+                    },
+                ],
+            },
+            legacyExpertise: {
                 orderBy: {
                     name: "asc",
                 },
@@ -357,6 +426,11 @@ export async function getTutorById(
         throw new HttpError(404, "Tutor not found.");
     }
 
+    const mappedSubjects =
+        tutor.subjects.length > 0
+            ? tutor.subjects.map(mapTutorSubject)
+            : tutor.legacyExpertise.map(mapLegacyTutorSubject);
+
     return {
         tutor: {
             id: tutor.id,
@@ -381,11 +455,7 @@ export async function getTutorById(
                 name: category.name,
                 slug: category.slug,
             })),
-            expertise: tutor.expertise.map((item) => ({
-                id: item.id,
-                name: item.name,
-                slug: item.slug,
-            })),
+            subjects: mappedSubjects,
             education: tutor.education.map((item) => ({
                 id: item.id,
                 degree: item.degree,
@@ -418,7 +488,7 @@ export async function getTutorById(
 export async function getMyTutorProfile(
     userId: string
 ): Promise<TutorEditableProfileResponse> {
-    const [tutor, categories] = await Promise.all([
+    const [tutor, categories, subjects, degrees] = await Promise.all([
         prisma.tutorProfile.findUnique({
             where: { userId },
             include: {
@@ -428,10 +498,26 @@ export async function getMyTutorProfile(
                         category: true,
                     },
                 },
-                expertise: {
-                    orderBy: {
-                        name: "asc",
+                subjects: {
+                    include: {
+                        subject: {
+                            include: {
+                                category: true,
+                            },
+                        },
                     },
+                    orderBy: [
+                        {
+                            subject: {
+                                displayOrder: "asc",
+                            },
+                        },
+                        {
+                            subject: {
+                                name: "asc",
+                            },
+                        },
+                    ],
                 },
                 education: {
                     orderBy: [{ endYear: "desc" }, { startYear: "desc" }],
@@ -439,9 +525,32 @@ export async function getMyTutorProfile(
             },
         }),
         prisma.category.findMany({
-            orderBy: {
-                name: "asc",
+            where: {
+                isActive: true,
             },
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+        }),
+        prisma.subject.findMany({
+            where: {
+                isActive: true,
+                category: {
+                    isActive: true,
+                },
+            },
+            include: {
+                category: true,
+            },
+            orderBy: [
+                { category: { displayOrder: "asc" } },
+                { displayOrder: "asc" },
+                { name: "asc" },
+            ],
+        }),
+        prisma.degree.findMany({
+            where: {
+                isActive: true,
+            },
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
         }),
     ]);
 
@@ -462,10 +571,12 @@ export async function getMyTutorProfile(
             hourlyRate: tutor.hourlyRate,
             experienceYears: tutor.experienceYears,
             categoryIds: tutor.categories.map(({ categoryId }) => categoryId),
-            expertise: tutor.expertise.map((item) => ({
+            subjects: tutor.subjects.map((item) => ({
                 id: item.id,
-                name: item.name,
-                slug: item.slug,
+                subjectId: item.subjectId,
+                categoryId: item.subject.categoryId,
+                name: item.subject.name,
+                slug: item.subject.slug,
             })),
             education: tutor.education.map(toEditableEducation),
         },
@@ -473,6 +584,20 @@ export async function getMyTutorProfile(
             id: category.id,
             name: category.name,
             slug: category.slug,
+        })),
+        availableSubjects: subjects.map((subject) => ({
+            id: subject.id,
+            categoryId: subject.categoryId,
+            name: subject.name,
+            slug: subject.slug,
+            shortDescription: subject.shortDescription ?? null,
+            iconKey: subject.iconKey ?? null,
+        })),
+        availableDegrees: degrees.map((degree) => ({
+            id: degree.id,
+            name: degree.name,
+            slug: degree.slug,
+            level: degree.level ?? null,
         })),
     };
 }
@@ -494,17 +619,7 @@ export async function updateMyTutorProfile(
     }
 
     const uniqueCategoryIds = [...new Set(payload.categoryIds)];
-    const uniqueExpertise = Array.from(
-        new Map(
-            payload.expertise.map((item) => [
-                item.id?.trim() || `new:${slugifyExpertiseName(item.name)}`,
-                {
-                    ...item,
-                    name: item.name.trim(),
-                },
-            ])
-        ).values()
-    );
+    const uniqueSubjectIds = [...new Set(payload.subjectIds)];
     const normalizedEducation = payload.education.map((item) => ({
         ...item,
         degree: item.degree.trim(),
@@ -513,202 +628,232 @@ export async function updateMyTutorProfile(
         description: item.description?.trim() || null,
     }));
 
-    const validCategories = await prisma.category.findMany({
-        where: {
-            id: {
-                in: uniqueCategoryIds,
-            },
-        },
-        select: {
-            id: true,
-        },
-    });
+    const [validCategories, validSubjects, validDegrees, existingEducation] =
+        await Promise.all([
+            prisma.category.findMany({
+                where: {
+                    id: {
+                        in: uniqueCategoryIds,
+                    },
+                    isActive: true,
+                },
+                select: {
+                    id: true,
+                },
+            }),
+            prisma.subject.findMany({
+                where: {
+                    id: {
+                        in: uniqueSubjectIds,
+                    },
+                    isActive: true,
+                },
+                select: {
+                    id: true,
+                    categoryId: true,
+                    name: true,
+                },
+            }),
+            prisma.degree.findMany({
+                where: {
+                    id: {
+                        in: [...new Set(normalizedEducation.map((item) => item.degreeId))],
+                    },
+                    isActive: true,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                },
+            }),
+            prisma.tutorEducation.findMany({
+                where: { tutorId: tutor.id },
+                select: { id: true },
+            }),
+        ]);
 
     if (validCategories.length !== uniqueCategoryIds.length) {
         throw new HttpError(400, "One or more selected categories are invalid.");
     }
 
-    const [existingExpertise, existingEducation] = await Promise.all([
-        prisma.tutorExpertise.findMany({
-            where: { tutorId: tutor.id },
-            select: { id: true },
-        }),
-        prisma.tutorEducation.findMany({
-            where: { tutorId: tutor.id },
-            select: { id: true },
-        }),
-    ]);
+    if (validSubjects.length !== uniqueSubjectIds.length) {
+        throw new HttpError(400, "One or more selected subjects are invalid.");
+    }
 
-    const existingExpertiseIds = new Set(existingExpertise.map((item) => item.id));
+    const allowedCategoryIds = new Set(validCategories.map((item) => item.id));
+    for (const subject of validSubjects) {
+        if (!allowedCategoryIds.has(subject.categoryId)) {
+            throw new HttpError(
+                400,
+                "Each selected subject must belong to one of the selected categories."
+            );
+        }
+    }
+
+    const degreeMap = new Map(validDegrees.map((item) => [item.id, item.name]));
+
+    for (const educationItem of normalizedEducation) {
+        if (!degreeMap.has(educationItem.degreeId)) {
+            throw new HttpError(400, "One or more selected degrees are invalid.");
+        }
+    }
+
     const existingEducationIds = new Set(existingEducation.map((item) => item.id));
-
-    const keptExpertiseIds = uniqueExpertise
-        .map((item) => item.id?.trim())
-        .filter((value): value is string => Boolean(value));
-
     const keptEducationIds = normalizedEducation
         .map((item) => item.id?.trim())
         .filter((value): value is string => Boolean(value));
 
-    await prisma.$transaction(async (tx) => {
-        await tx.tutorProfile.update({
-            where: { id: tutor.id },
-            data: {
-                professionalTitle: payload.professionalTitle.trim(),
-                bio: payload.bio.trim(),
-                hourlyRate: payload.hourlyRate,
-                experienceYears: payload.experienceYears,
-            },
-        });
-
-        if (payload.profileImageUrl !== undefined) {
-            await tx.user.update({
-                where: { id: userId },
+    await prisma.$transaction(
+        async (tx) => {
+            await tx.tutorProfile.update({
+                where: { id: tutor.id },
                 data: {
-                    image: payload.profileImageUrl,
+                    professionalTitle: payload.professionalTitle.trim(),
+                    bio: payload.bio.trim(),
+                    hourlyRate: payload.hourlyRate,
+                    experienceYears: payload.experienceYears,
                 },
             });
-        }
 
-        await tx.tutorCategory.deleteMany({
-            where: {
-                tutorId: tutor.id,
-                categoryId: {
-                    notIn: uniqueCategoryIds.length > 0 ? uniqueCategoryIds : [""],
-                },
-            },
-        });
+            if (payload.profileImageUrl !== undefined) {
+                await tx.user.update({
+                    where: { id: userId },
+                    data: {
+                        image: payload.profileImageUrl,
+                    },
+                });
+            }
 
-        if (uniqueCategoryIds.length > 0) {
-            await tx.tutorCategory.createMany({
-                data: uniqueCategoryIds.map((categoryId) => ({
-                    tutorId: tutor.id,
-                    categoryId,
-                })),
-                skipDuplicates: true,
-            });
-        } else {
             await tx.tutorCategory.deleteMany({
                 where: {
                     tutorId: tutor.id,
+                    categoryId: {
+                        notIn: uniqueCategoryIds.length > 0 ? uniqueCategoryIds : [""],
+                    },
                 },
             });
-        }
 
-        await tx.tutorExpertise.deleteMany({
-            where: {
-                tutorId: tutor.id,
-                id: {
-                    notIn: keptExpertiseIds.length > 0 ? keptExpertiseIds : [""],
-                },
-            },
-        });
-
-        for (const expertise of uniqueExpertise) {
-            const slugBase = slugifyExpertiseName(expertise.name);
-            const slug = slugBase || `expertise-${Date.now()}`;
-
-            if (
-                expertise.id &&
-                existingExpertiseIds.has(expertise.id)
-            ) {
-                await tx.tutorExpertise.update({
-                    where: { id: expertise.id },
-                    data: {
-                        name: expertise.name,
-                        slug,
-                    },
+            if (uniqueCategoryIds.length > 0) {
+                await tx.tutorCategory.createMany({
+                    data: uniqueCategoryIds.map((categoryId) => ({
+                        tutorId: tutor.id,
+                        categoryId,
+                    })),
+                    skipDuplicates: true,
                 });
             } else {
-                await tx.tutorExpertise.create({
-                    data: {
+                await tx.tutorCategory.deleteMany({
+                    where: {
                         tutorId: tutor.id,
-                        name: expertise.name,
-                        slug,
                     },
                 });
             }
-        }
 
-        await tx.tutorEducation.deleteMany({
-            where: {
-                tutorId: tutor.id,
-                id: {
-                    notIn: keptEducationIds.length > 0 ? keptEducationIds : [""],
+            await tx.tutorSubject.deleteMany({
+                where: {
+                    tutorId: tutor.id,
+                    subjectId: {
+                        notIn: uniqueSubjectIds.length > 0 ? uniqueSubjectIds : [""],
+                    },
                 },
-            },
-        });
+            });
 
-        for (const educationItem of normalizedEducation) {
-            const data = {
-                degree: educationItem.degree,
-                institution: educationItem.institution,
-                fieldOfStudy: educationItem.fieldOfStudy,
-                startYear: educationItem.startYear,
-                endYear: educationItem.endYear ?? null,
-                description: educationItem.description,
-            };
-
-            if (
-                educationItem.id &&
-                existingEducationIds.has(educationItem.id)
-            ) {
-                await tx.tutorEducation.update({
-                    where: { id: educationItem.id },
-                    data,
+            if (uniqueSubjectIds.length > 0) {
+                await tx.tutorSubject.createMany({
+                    data: uniqueSubjectIds.map((subjectId) => ({
+                        tutorId: tutor.id,
+                        subjectId,
+                    })),
+                    skipDuplicates: true,
                 });
             } else {
-                await tx.tutorEducation.create({
-                    data: {
+                await tx.tutorSubject.deleteMany({
+                    where: {
                         tutorId: tutor.id,
-                        ...data,
                     },
                 });
             }
+
+            await tx.tutorEducation.deleteMany({
+                where: {
+                    tutorId: tutor.id,
+                    id: {
+                        notIn: keptEducationIds.length > 0 ? keptEducationIds : [""],
+                    },
+                },
+            });
+
+            for (const educationItem of normalizedEducation) {
+                const data = {
+                    degreeId: educationItem.degreeId,
+                    degree: degreeMap.get(educationItem.degreeId) ?? educationItem.degree,
+                    institution: educationItem.institution,
+                    fieldOfStudy: educationItem.fieldOfStudy,
+                    startYear: educationItem.startYear,
+                    endYear: educationItem.endYear ?? null,
+                    description: educationItem.description,
+                };
+
+                if (educationItem.id && existingEducationIds.has(educationItem.id)) {
+                    await tx.tutorEducation.update({
+                        where: { id: educationItem.id },
+                        data,
+                    });
+                } else {
+                    await tx.tutorEducation.create({
+                        data: {
+                            tutorId: tutor.id,
+                            ...data,
+                        },
+                    });
+                }
+            }
+        },
+        {
+            maxWait: 10000,
+            timeout: 20000,
         }
-    }, {
-        maxWait: 10000,
-        timeout: 20000,
-    });
+    );
 
     return getMyTutorProfile(userId);
 }
 
 export async function getTutorSubjectOptions(): Promise<TutorSubjectOption[]> {
-    const expertiseItems = await prisma.tutorExpertise.findMany({
+    const subjects = await prisma.subject.findMany({
         where: {
-            tutor: {
-                deletedAt: null,
-                user: {
-                    deletedAt: null,
-                    isBanned: false,
-                    role: "tutor",
+            isActive: true,
+            tutors: {
+                some: {
+                    tutor: {
+                        deletedAt: null,
+                        user: {
+                            deletedAt: null,
+                            isBanned: false,
+                            role: "tutor",
+                        },
+                    },
                 },
             },
         },
-        orderBy: {
-            name: "asc",
+        include: {
+            category: true,
         },
-        select: {
-            id: true,
-            name: true,
-            slug: true,
-        },
+        orderBy: [
+            { category: { displayOrder: "asc" } },
+            { displayOrder: "asc" },
+            { name: "asc" },
+        ],
     });
 
-    const uniqueSubjects = new Map<string, TutorSubjectOption>();
-
-    for (const item of expertiseItems) {
-        if (!uniqueSubjects.has(item.slug)) {
-            uniqueSubjects.set(item.slug, {
-                id: item.id,
-                name: item.name,
-                slug: item.slug,
-            });
-        }
-    }
-
-    return [...uniqueSubjects.values()];
+    return subjects.map((subject) => ({
+        id: subject.id,
+        name: subject.name,
+        slug: subject.slug,
+        iconKey: subject.iconKey ?? null,
+        categoryId: subject.categoryId,
+        categoryName: subject.category.name,
+        shortDescription: subject.shortDescription ?? null,
+    }));
 }
 
 export const tutorDefaults = {

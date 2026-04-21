@@ -183,18 +183,14 @@ export const tutorProfileUpdateSchema = z.object({
             message: "experienceYears must be a non-negative number.",
         }),
     categoryIds: z.array(z.string().trim().min(1, "categoryIds must be an array.")),
-    expertise: z
-        .array(
-            z.object({
-                id: z.string().trim().min(1).optional(),
-                name: z.string().trim().min(1, "Each subject entry needs a subject name."),
-            })
-        )
+    subjectIds: z
+        .array(z.string().trim().min(1, "Each selected subject must be valid."))
         .min(1, "At least one subject is required."),
     education: z.array(
         z
             .object({
                 id: z.string().trim().min(1).optional(),
+                degreeId: z.string().trim().min(1, "Each education entry needs a degree."),
                 degree: z.string().trim().min(1, "Each education entry needs a degree name."),
                 institution: z
                     .string()

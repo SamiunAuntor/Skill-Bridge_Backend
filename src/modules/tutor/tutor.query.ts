@@ -60,9 +60,11 @@ function createTutorSubjectFilter(
                 },
             },
             {
-                expertise: {
+                subjects: {
                     some: {
-                        slug: subject,
+                        subject: {
+                            slug: subject,
+                        },
                     },
                 },
             },

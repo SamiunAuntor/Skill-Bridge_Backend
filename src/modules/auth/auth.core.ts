@@ -133,7 +133,7 @@ export const auth = betterAuth({
 
                     if (!user || user.deletedAt || user.isBanned) {
                         throw new APIError("FORBIDDEN", {
-                            message: "This account is not allowed to sign in.",
+                            message: "This account has been restricted. Please contact the platform authority.",
                         });
                     }
 
