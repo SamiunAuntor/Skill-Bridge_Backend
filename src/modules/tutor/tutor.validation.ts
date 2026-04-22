@@ -191,7 +191,6 @@ export const tutorProfileUpdateSchema = z.object({
             .object({
                 id: z.string().trim().min(1).optional(),
                 degreeId: z.string().trim().min(1, "Each education entry needs a degree."),
-                degree: z.string().trim().min(1, "Each education entry needs a degree name."),
                 institution: z
                     .string()
                     .trim()

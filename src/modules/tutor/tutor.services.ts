@@ -48,24 +48,12 @@ function mapTutorSubject(item: {
     };
 }
 
-function mapLegacyTutorSubject(item: {
-    id: string;
-    name: string;
-    slug: string;
-}) {
-    return {
-        id: item.id,
-        name: item.name,
-        slug: item.slug,
-        categoryId: "",
-        categoryName: "Legacy Subject",
-    };
-}
-
 function toEditableEducation(input: {
     id: string;
-    degreeId: string | null;
-    degree: string;
+    degreeId: string;
+    degreeOption: {
+        name: string;
+    };
     institution: string;
     fieldOfStudy: string;
     startYear: number;
@@ -74,8 +62,7 @@ function toEditableEducation(input: {
 }) {
     return {
         id: input.id,
-        degreeId: input.degreeId ?? "",
-        degree: input.degree,
+        degreeId: input.degreeId,
         institution: input.institution,
         fieldOfStudy: input.fieldOfStudy,
         startYear: input.startYear,
@@ -269,11 +256,6 @@ export async function getTutors(
                         },
                     },
                 },
-                legacyExpertise: {
-                    orderBy: {
-                        name: "asc",
-                    },
-                },
                 availability: {
                     where: {
                         isBooked: false,
@@ -294,18 +276,12 @@ export async function getTutors(
     const totalPages = Math.max(1, Math.ceil(totalItems / filters.limit));
 
     return {
-        tutors: tutors.map((tutor) => {
-            const mappedSubjects =
-                tutor.subjects.length > 0
-                    ? tutor.subjects.map(mapTutorSubject)
-                    : tutor.legacyExpertise.map(mapLegacyTutorSubject);
-
-            return {
+        tutors: tutors.map((tutor) => ({
                 id: tutor.id,
                 userId: tutor.userId,
                 displayName: toDisplayName(tutor.user),
                 professionalTitle: toProfessionalTitle(tutor.professionalTitle),
-                avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
+                avatarUrl: tutor.user.image ?? null,
                 bio: toPublicBio(tutor.bio),
                 hourlyRate: tutor.hourlyRate,
                 experienceYears: tutor.experienceYears,
@@ -320,12 +296,11 @@ export async function getTutors(
                     name: category.name,
                     slug: category.slug,
                 })),
-                subjects: mappedSubjects,
+                subjects: tutor.subjects.map(mapTutorSubject),
                 hasAvailability: tutor.availability.length > 0,
                 nextAvailableSlot:
                     tutor.availability[0]?.startAt.toISOString() ?? null,
-            };
-        }),
+            })),
         pagination: {
             page: filters.page,
             limit: filters.limit,
@@ -376,12 +351,14 @@ export async function getTutorById(
                     },
                 ],
             },
-            legacyExpertise: {
-                orderBy: {
-                    name: "asc",
-                },
-            },
             education: {
+                include: {
+                    degreeOption: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                },
                 orderBy: [{ endYear: "desc" }, { startYear: "desc" }],
             },
             availability: {
@@ -417,11 +394,6 @@ export async function getTutorById(
         throw new HttpError(404, "Tutor not found.");
     }
 
-    const mappedSubjects =
-        tutor.subjects.length > 0
-            ? tutor.subjects.map(mapTutorSubject)
-            : tutor.legacyExpertise.map(mapLegacyTutorSubject);
-
     return {
         tutor: {
             id: tutor.id,
@@ -429,7 +401,7 @@ export async function getTutorById(
             displayName: toDisplayName(tutor.user),
             professionalTitle: toProfessionalTitle(tutor.professionalTitle),
             email: tutor.user.email,
-            avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
+            avatarUrl: tutor.user.image ?? null,
             bio: toPublicBio(tutor.bio),
             hourlyRate: tutor.hourlyRate,
             experienceYears: tutor.experienceYears,
@@ -442,14 +414,14 @@ export async function getTutorById(
                 tutor.totalReviews
             ),
             categories: tutor.categories.map(({ category }) => ({
-                id: category.id,
-                name: category.name,
-                slug: category.slug,
-            })),
-            subjects: mappedSubjects,
+                    id: category.id,
+                    name: category.name,
+                    slug: category.slug,
+                })),
+            subjects: tutor.subjects.map(mapTutorSubject),
             education: tutor.education.map((item) => ({
                 id: item.id,
-                degree: item.degree,
+                degree: item.degreeOption.name,
                 institution: item.institution,
                 fieldOfStudy: item.fieldOfStudy,
                 startYear: item.startYear,
@@ -464,7 +436,7 @@ export async function getTutorById(
                 student: {
                     id: review.student.id,
                     name: toDisplayName(review.student),
-                    avatarUrl: review.student.avatarUrl ?? review.student.image ?? null,
+                    avatarUrl: review.student.image ?? null,
                 },
             })),
             availableSlots: tutor.availability.map((slot) => ({
@@ -511,6 +483,13 @@ export async function getMyTutorProfile(
                     ],
                 },
                 education: {
+                    include: {
+                        degreeOption: {
+                            select: {
+                                name: true,
+                            },
+                        },
+                    },
                     orderBy: [{ endYear: "desc" }, { startYear: "desc" }],
                 },
             },
@@ -551,8 +530,8 @@ export async function getMyTutorProfile(
             userId: tutor.userId,
             displayName: toDisplayName(tutor.user),
             email: tutor.user.email,
-            avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
-            profileImageUrl: tutor.user.image ?? tutor.user.avatarUrl ?? null,
+            avatarUrl: tutor.user.image ?? null,
+            profileImageUrl: tutor.user.image ?? null,
             professionalTitle: toProfessionalTitle(tutor.professionalTitle),
             bio: tutor.bio,
             hourlyRate: tutor.hourlyRate,
@@ -608,7 +587,6 @@ export async function updateMyTutorProfile(
     const uniqueSubjectIds = [...new Set(payload.subjectIds)];
     const normalizedEducation = payload.education.map((item) => ({
         ...item,
-        degree: item.degree.trim(),
         institution: item.institution.trim(),
         fieldOfStudy: item.fieldOfStudy?.trim() ?? "",
         description: item.description?.trim() || null,
@@ -772,7 +750,6 @@ export async function updateMyTutorProfile(
             for (const educationItem of normalizedEducation) {
                 const data = {
                     degreeId: educationItem.degreeId,
-                    degree: degreeMap.get(educationItem.degreeId) ?? educationItem.degree,
                     institution: educationItem.institution,
                     fieldOfStudy: educationItem.fieldOfStudy,
                     startYear: educationItem.startYear,

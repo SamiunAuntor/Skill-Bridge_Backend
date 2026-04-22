@@ -60,7 +60,6 @@ export async function updateMyStudentProfile(
             firstName: parsedName.firstName,
             lastName: parsedName.lastName,
             image: image || null,
-            avatarUrl: image || null,
         },
         select: {
             id: true,

@@ -64,7 +64,6 @@ function mapSessionListItem(input: {
         lastName: string | null;
         email: string;
         image: string | null;
-        avatarUrl: string | null;
     };
     tutor: {
         id: string;
@@ -74,7 +73,6 @@ function mapSessionListItem(input: {
             lastName: string | null;
             email: string;
             image: string | null;
-            avatarUrl: string | null;
         };
     };
 }): SessionListItem {
@@ -109,12 +107,12 @@ function mapSessionListItem(input: {
         student: {
             id: input.student.id,
             name: normalizeDisplayName(input.student),
-            avatarUrl: input.student.image || input.student.avatarUrl,
+            avatarUrl: input.student.image ?? null,
         },
         tutor: {
             id: input.tutor.id,
             name: normalizeDisplayName(input.tutor.user),
-            avatarUrl: input.tutor.user.image || input.tutor.user.avatarUrl,
+            avatarUrl: input.tutor.user.image ?? null,
         },
     };
 }
@@ -508,7 +506,6 @@ export async function getMySessions(
                     lastName: true,
                     email: true,
                     image: true,
-                    avatarUrl: true,
                 },
             },
             tutor: {
@@ -521,7 +518,6 @@ export async function getMySessions(
                             lastName: true,
                             email: true,
                             image: true,
-                            avatarUrl: true,
                         },
                     },
                 },
@@ -651,7 +647,6 @@ export async function getTutorDashboardSummary(
                             lastName: true,
                             email: true,
                             image: true,
-                            avatarUrl: true,
                         },
                     },
                 },
@@ -716,7 +711,6 @@ export async function getTutorDashboardSummary(
                         lastName: true,
                         email: true,
                         image: true,
-                        avatarUrl: true,
                     },
                 },
                 tutor: {
@@ -729,7 +723,6 @@ export async function getTutorDashboardSummary(
                                 lastName: true,
                                 email: true,
                                 image: true,
-                                avatarUrl: true,
                             },
                         },
                     },
@@ -804,7 +797,7 @@ export async function getTutorDashboardSummary(
             student: {
                 id: review.student.id,
                 name: normalizeDisplayName(review.student),
-                avatarUrl: review.student.image || review.student.avatarUrl,
+                avatarUrl: review.student.image ?? null,
             },
         })),
     };

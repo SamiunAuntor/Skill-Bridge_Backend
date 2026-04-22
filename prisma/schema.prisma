@@ -74,9 +74,7 @@ model User {
   lastName  String?
   role      Role    @default(student)
 
-  avatarUrl  String?
-  isBanned   Boolean @default(false)
-  isVerified Boolean @default(false)
+  isBanned Boolean @default(false)
 
   emailVerified Boolean @default(false)
   image         String?
@@ -125,7 +123,6 @@ model TutorProfile {
   categories   TutorCategory[]
   education    TutorEducation[]
   subjects     TutorSubject[]
-  legacyExpertise LegacyTutorExpertise[]
   availability AvailabilitySlot[]
   bookings     Booking[]
   reviews      Review[]
@@ -169,18 +166,16 @@ model TutorCategory {
 model TutorEducation {
   id String @id @default(uuid())
 
-  tutorId String
-  degreeId String?
-
-  degree       String
+  tutorId   String
+  degreeId  String
   institution  String
   fieldOfStudy String
   startYear    Int
   endYear      Int?
   description  String?
 
-  tutor TutorProfile @relation(fields: [tutorId], references: [id])
-  degreeOption Degree? @relation(fields: [degreeId], references: [id])
+  tutor        TutorProfile @relation(fields: [tutorId], references: [id])
+  degreeOption Degree       @relation(fields: [degreeId], references: [id])
 }
 
 model Subject {
@@ -213,18 +208,6 @@ model TutorSubject {
 
   @@unique([tutorId, subjectId])
   @@index([subjectId])
-}
-
-model LegacyTutorExpertise {
-  id String @id @default(uuid())
-
-  tutorId String
-  name    String
-  slug    String
-
-  tutor TutorProfile @relation(fields: [tutorId], references: [id])
-
-  @@map("TutorExpertise")
 }
 
 model Degree {

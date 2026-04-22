@@ -85,12 +85,6 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
                     },
                     take: 1,
                 },
-                legacyExpertise: {
-                    orderBy: {
-                        name: "asc",
-                    },
-                    take: 1,
-                },
                 categories: {
                     include: {
                         category: true,
@@ -129,14 +123,13 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
             id: tutor.id,
             displayName: toDisplayName(tutor.user),
             professionalTitle: toProfessionalTitle(tutor.professionalTitle),
-            avatarUrl: tutor.user.avatarUrl ?? tutor.user.image ?? null,
+            avatarUrl: tutor.user.image ?? null,
             bio: toPublicBio(tutor.bio),
             hourlyRate: tutor.hourlyRate,
             averageRating: tutor.averageRating,
             totalReviews: tutor.totalReviews,
             primarySubject:
                 tutor.subjects[0]?.subject.name ??
-                tutor.legacyExpertise[0]?.name ??
                 tutor.categories[0]?.category.name ??
                 "General Tutoring",
         })),
@@ -252,7 +245,7 @@ export async function getPublicSubjectBySlug(
             userId: item.tutor.userId,
             displayName: toDisplayName(item.tutor.user),
             professionalTitle: toProfessionalTitle(item.tutor.professionalTitle),
-            avatarUrl: item.tutor.user.avatarUrl ?? item.tutor.user.image ?? null,
+            avatarUrl: item.tutor.user.image ?? null,
             bio: toPublicBio(item.tutor.bio),
             hourlyRate: item.tutor.hourlyRate,
             averageRating: item.tutor.averageRating,

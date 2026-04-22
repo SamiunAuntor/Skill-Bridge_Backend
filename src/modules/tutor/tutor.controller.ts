@@ -82,7 +82,6 @@ export const updateMyTutorProfileController = asyncHandler(async (
         education: parsed.education.map((item) => ({
             ...(item.id ? { id: item.id } : {}),
             degreeId: item.degreeId,
-            degree: item.degree,
             institution: item.institution,
             ...(item.fieldOfStudy ? { fieldOfStudy: item.fieldOfStudy } : {}),
             startYear: item.startYear,

@@ -149,7 +149,6 @@ export interface TutorEditableSubjectItem {
 export interface TutorEditableEducationItem {
     id: string;
     degreeId: string;
-    degree: string;
     institution: string;
     fieldOfStudy: string;
     startYear: number;
@@ -197,7 +196,6 @@ export interface TutorProfileUpdateSubjectInput {
 export interface TutorProfileUpdateEducationInput {
     id?: string;
     degreeId: string;
-    degree: string;
     institution: string;
     fieldOfStudy?: string | undefined;
     startYear: number;
