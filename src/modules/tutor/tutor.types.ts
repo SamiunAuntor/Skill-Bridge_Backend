@@ -128,14 +128,13 @@ export interface TutorEditableSubjectOption {
     categoryId: string;
     name: string;
     slug: string;
-    shortDescription: string | null;
-    iconKey: string | null;
+    description: string | null;
+    iconUrl: string | null;
 }
 
 export interface TutorEditableDegreeOption {
     id: string;
     name: string;
-    slug: string;
     level: string | null;
 }
 
@@ -185,10 +184,10 @@ export interface TutorSubjectOption {
     id: string;
     name: string;
     slug: string;
-    iconKey: string | null;
+    iconUrl: string | null;
     categoryId: string;
     categoryName: string;
-    shortDescription: string | null;
+    description: string | null;
 }
 
 export interface TutorProfileUpdateSubjectInput {

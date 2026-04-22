@@ -23,8 +23,6 @@ export const adminBookingSortOptions = [
 export type AdminBookingSortOption = (typeof adminBookingSortOptions)[number];
 
 export const adminMasterSortOptions = [
-    "display_asc",
-    "display_desc",
     "name_asc",
     "name_desc",
     "newest",
@@ -155,10 +153,8 @@ export interface AdminCategoriesResponse {
     categories: Array<{
         id: string;
         name: string;
-        slug: string;
         description: string | null;
         isActive: boolean;
-        displayOrder: number;
         subjectCount: number;
         tutorCount: number;
         createdAt: string;
@@ -173,13 +169,10 @@ export interface AdminSubjectsResponse {
         categoryId: string;
         categoryName: string;
         name: string;
-        slug: string;
-        shortDescription: string | null;
-        longDescription: string | null;
-        iconKey: string | null;
-        heroImageUrl: string | null;
+        description: string | null;
+        iconUrl: string | null;
+        iconPublicId: string | null;
         isActive: boolean;
-        displayOrder: number;
         tutorCount: number;
         createdAt: string;
     }>;
@@ -191,10 +184,8 @@ export interface AdminDegreesResponse {
     degrees: Array<{
         id: string;
         name: string;
-        slug: string;
         level: string | null;
         isActive: boolean;
-        displayOrder: number;
         usageCount: number;
         createdAt: string;
     }>;
@@ -204,28 +195,21 @@ export interface AdminDegreesResponse {
 
 export interface AdminCategoryUpsertInput {
     name: string;
-    slug?: string;
     description?: string | null;
     isActive?: boolean;
-    displayOrder?: number;
 }
 
 export interface AdminSubjectUpsertInput {
     categoryId: string;
     name: string;
-    slug?: string;
-    shortDescription?: string | null;
-    longDescription?: string | null;
-    iconKey?: string | null;
-    heroImageUrl?: string | null;
+    description?: string | null;
+    iconUrl?: string | null;
+    iconPublicId?: string | null;
     isActive?: boolean;
-    displayOrder?: number;
 }
 
 export interface AdminDegreeUpsertInput {
     name: string;
-    slug?: string;
     level?: string | null;
     isActive?: boolean;
-    displayOrder?: number;
 }

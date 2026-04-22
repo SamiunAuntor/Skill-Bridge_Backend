@@ -60,34 +60,35 @@ const optionalTrimmedString = z
     .optional()
     .transform((value) => value || undefined);
 
-const optionalNullableHttpsUrl = z
-    .union([z.string(), z.null()])
-    .optional()
-    .transform((value, ctx) => {
-        if (value == null) {
-            return value;
-        }
-
-        const normalized = value.trim();
-
-        if (!normalized) {
-            return null;
-        }
-
-        try {
-            const url = new URL(normalized);
-            if (!["http:", "https:"].includes(url.protocol)) {
-                throw new Error("Invalid protocol.");
+const optionalNullableHttpsUrl = (fieldName: string) =>
+    z
+        .union([z.string(), z.null()])
+        .optional()
+        .transform((value, ctx) => {
+            if (value == null) {
+                return value;
             }
-            return normalized;
-        } catch {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "heroImageUrl must be a valid URL.",
-            });
-            return z.NEVER;
-        }
-    });
+
+            const normalized = value.trim();
+
+            if (!normalized) {
+                return null;
+            }
+
+            try {
+                const url = new URL(normalized);
+                if (!["http:", "https:"].includes(url.protocol)) {
+                    throw new Error("Invalid protocol.");
+                }
+                return normalized;
+            } catch {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: `${fieldName} must be a valid URL.`,
+                });
+                return z.NEVER;
+            }
+        });
 
 export const adminDashboardQuerySchema = z.object({});
 
@@ -121,7 +122,7 @@ export const adminBookingsQuerySchema = z.object({
 export const adminCategoriesQuerySchema = z.object({
     q: optionalTrimmedString,
     isActive: optionalBooleanFromQuery("isActive"),
-    sortBy: z.enum(adminMasterSortOptions).optional().default("display_asc"),
+    sortBy: z.enum(adminMasterSortOptions).optional().default("name_asc"),
     page: positiveIntegerFromQuery("page", adminQueryDefaults.page),
     limit: positiveIntegerFromQuery("limit", adminQueryDefaults.limit),
 });
@@ -134,10 +135,8 @@ export const adminDegreesQuerySchema = adminCategoriesQuerySchema;
 
 export const adminCategoryCreateSchema = z.object({
     name: z.string().trim().min(1, "Category name is required."),
-    slug: optionalTrimmedString,
     description: z.string().trim().nullish().transform((value) => value || null),
-    isActive: z.boolean().optional().default(true),
-    displayOrder: z.coerce.number().int().optional().default(0),
+    isActive: z.boolean().optional(),
 });
 
 export const adminCategoryUpdateSchema = adminCategoryCreateSchema;
@@ -145,31 +144,22 @@ export const adminCategoryUpdateSchema = adminCategoryCreateSchema;
 export const adminSubjectCreateSchema = z.object({
     categoryId: z.string().trim().min(1, "Category is required."),
     name: z.string().trim().min(1, "Subject name is required."),
-    slug: optionalTrimmedString,
-    shortDescription: z
+    description: z
         .string()
         .trim()
         .nullish()
         .transform((value) => value || null),
-    longDescription: z
-        .string()
-        .trim()
-        .nullish()
-        .transform((value) => value || null),
-    iconKey: z.string().trim().nullish().transform((value) => value || null),
-    heroImageUrl: optionalNullableHttpsUrl,
-    isActive: z.boolean().optional().default(true),
-    displayOrder: z.coerce.number().int().optional().default(0),
+    iconUrl: optionalNullableHttpsUrl("iconUrl"),
+    iconPublicId: z.string().trim().nullish().transform((value) => value || null),
+    isActive: z.boolean().optional(),
 });
 
 export const adminSubjectUpdateSchema = adminSubjectCreateSchema;
 
 export const adminDegreeCreateSchema = z.object({
     name: z.string().trim().min(1, "Degree name is required."),
-    slug: optionalTrimmedString,
     level: z.string().trim().nullish().transform((value) => value || null),
-    isActive: z.boolean().optional().default(true),
-    displayOrder: z.coerce.number().int().optional().default(0),
+    isActive: z.boolean().optional(),
 });
 
 export const adminDegreeUpdateSchema = adminDegreeCreateSchema;

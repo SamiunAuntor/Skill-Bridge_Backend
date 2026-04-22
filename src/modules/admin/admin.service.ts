@@ -2,6 +2,7 @@ import { BookingStatus, PaymentStatus } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
 import { toDisplayName } from "../../shared/utils";
 import { HttpError } from "../../utils/http-error";
+import { deleteUploadedAsset } from "../upload/upload.services";
 import {
     buildAdminBookingsQuery,
     buildAdminCategoriesQuery,
@@ -406,10 +407,8 @@ export async function getAdminCategories(
         categories: categories.map((category) => ({
             id: category.id,
             name: category.name,
-            slug: category.slug,
             description: category.description ?? null,
             isActive: category.isActive,
-            displayOrder: category.displayOrder,
             subjectCount: category._count.subjects,
             tutorCount: category._count.tutors,
             createdAt: category.createdAt.toISOString(),
@@ -421,7 +420,7 @@ export async function getAdminCategories(
 
 export async function createAdminCategory(input: AdminCategoryUpsertInput) {
     const name = input.name.trim();
-    const slug = input.slug?.trim() || slugify(name);
+    const slug = slugify(name);
 
     if (!slug) {
         throw new HttpError(400, "Category slug could not be generated.");
@@ -433,7 +432,6 @@ export async function createAdminCategory(input: AdminCategoryUpsertInput) {
             slug,
             description: input.description?.trim() || null,
             isActive: input.isActive ?? true,
-            displayOrder: input.displayOrder ?? 0,
         },
     });
 }
@@ -452,7 +450,7 @@ export async function updateAdminCategory(
     }
 
     const name = input.name.trim();
-    const slug = input.slug?.trim() || slugify(name);
+    const slug = slugify(name);
 
     if (!slug) {
         throw new HttpError(400, "Category slug could not be generated.");
@@ -464,8 +462,9 @@ export async function updateAdminCategory(
             name,
             slug,
             description: input.description?.trim() || null,
-            isActive: input.isActive ?? true,
-            displayOrder: input.displayOrder ?? 0,
+            ...(typeof input.isActive === "boolean"
+                ? { isActive: input.isActive }
+                : {}),
         },
     });
 }
@@ -532,13 +531,10 @@ export async function getAdminSubjects(
             categoryId: subject.categoryId,
             categoryName: subject.category.name,
             name: subject.name,
-            slug: subject.slug,
-            shortDescription: subject.shortDescription ?? null,
-            longDescription: subject.longDescription ?? null,
-            iconKey: subject.iconKey ?? null,
-            heroImageUrl: subject.heroImageUrl ?? null,
+            description: subject.description ?? null,
+            iconUrl: subject.iconUrl ?? null,
+            iconPublicId: subject.iconPublicId ?? null,
             isActive: subject.isActive,
-            displayOrder: subject.displayOrder,
             tutorCount: subject._count.tutors,
             createdAt: subject.createdAt.toISOString(),
         })),
@@ -562,7 +558,7 @@ export async function createAdminSubject(input: AdminSubjectUpsertInput) {
     }
 
     const name = input.name.trim();
-    const slug = input.slug?.trim() || slugify(name);
+    const slug = slugify(name);
 
     if (!slug) {
         throw new HttpError(400, "Subject slug could not be generated.");
@@ -573,12 +569,10 @@ export async function createAdminSubject(input: AdminSubjectUpsertInput) {
             categoryId: input.categoryId,
             name,
             slug,
-            shortDescription: input.shortDescription?.trim() || null,
-            longDescription: input.longDescription?.trim() || null,
-            iconKey: input.iconKey?.trim() || null,
-            heroImageUrl: input.heroImageUrl?.trim() || null,
+            description: input.description?.trim() || null,
+            iconUrl: input.iconUrl?.trim() || null,
+            iconPublicId: input.iconPublicId?.trim() || null,
             isActive: input.isActive ?? true,
-            displayOrder: input.displayOrder ?? 0,
         },
     });
 }
@@ -590,7 +584,7 @@ export async function updateAdminSubject(
     const [existing, category] = await Promise.all([
         prisma.subject.findUnique({
             where: { id },
-            select: { id: true },
+            select: { id: true, iconPublicId: true },
         }),
         prisma.category.findUnique({
             where: { id: input.categoryId },
@@ -607,26 +601,42 @@ export async function updateAdminSubject(
     }
 
     const name = input.name.trim();
-    const slug = input.slug?.trim() || slugify(name);
+    const slug = slugify(name);
 
     if (!slug) {
         throw new HttpError(400, "Subject slug could not be generated.");
     }
 
-    return prisma.subject.update({
+    const updatedSubject = await prisma.subject.update({
         where: { id },
         data: {
             categoryId: input.categoryId,
             name,
             slug,
-            shortDescription: input.shortDescription?.trim() || null,
-            longDescription: input.longDescription?.trim() || null,
-            iconKey: input.iconKey?.trim() || null,
-            heroImageUrl: input.heroImageUrl?.trim() || null,
-            isActive: input.isActive ?? true,
-            displayOrder: input.displayOrder ?? 0,
+            description: input.description?.trim() || null,
+            iconUrl: input.iconUrl?.trim() || null,
+            iconPublicId: input.iconPublicId?.trim() || null,
+            ...(typeof input.isActive === "boolean"
+                ? { isActive: input.isActive }
+                : {}),
         },
     });
+
+    if (
+        existing.iconPublicId &&
+        existing.iconPublicId !== updatedSubject.iconPublicId
+    ) {
+        try {
+            await deleteUploadedAsset({
+                publicId: existing.iconPublicId,
+                resourceType: "image",
+            });
+        } catch {
+            // Best-effort cleanup only; failed old-asset cleanup should not break the admin update.
+        }
+    }
+
+    return updatedSubject;
 }
 
 export async function deleteAdminSubject(id: string): Promise<void> {
@@ -655,6 +665,17 @@ export async function deleteAdminSubject(id: string): Promise<void> {
     await prisma.subject.delete({
         where: { id },
     });
+
+    if (subject.iconPublicId) {
+        try {
+            await deleteUploadedAsset({
+                publicId: subject.iconPublicId,
+                resourceType: "image",
+            });
+        } catch {
+            // Best-effort cleanup only; failed remote deletion should not break local DB deletion.
+        }
+    }
 }
 
 export async function getAdminDegrees(
@@ -687,10 +708,8 @@ export async function getAdminDegrees(
         degrees: degrees.map((degree) => ({
             id: degree.id,
             name: degree.name,
-            slug: degree.slug,
             level: degree.level ?? null,
             isActive: degree.isActive,
-            displayOrder: degree.displayOrder,
             usageCount: degree._count.educations,
             createdAt: degree.createdAt.toISOString(),
         })),
@@ -701,19 +720,12 @@ export async function getAdminDegrees(
 
 export async function createAdminDegree(input: AdminDegreeUpsertInput) {
     const name = input.name.trim();
-    const slug = input.slug?.trim() || slugify(name);
-
-    if (!slug) {
-        throw new HttpError(400, "Degree slug could not be generated.");
-    }
 
     return prisma.degree.create({
         data: {
             name,
-            slug,
             level: input.level?.trim() || null,
             isActive: input.isActive ?? true,
-            displayOrder: input.displayOrder ?? 0,
         },
     });
 }
@@ -732,20 +744,15 @@ export async function updateAdminDegree(
     }
 
     const name = input.name.trim();
-    const slug = input.slug?.trim() || slugify(name);
-
-    if (!slug) {
-        throw new HttpError(400, "Degree slug could not be generated.");
-    }
 
     return prisma.degree.update({
         where: { id },
         data: {
             name,
-            slug,
             level: input.level?.trim() || null,
-            isActive: input.isActive ?? true,
-            displayOrder: input.displayOrder ?? 0,
+            ...(typeof input.isActive === "boolean"
+                ? { isActive: input.isActive }
+                : {}),
         },
     });
 }

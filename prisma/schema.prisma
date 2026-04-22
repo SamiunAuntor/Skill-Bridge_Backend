@@ -138,12 +138,11 @@ model TutorProfile {
 // CATEGORY
 
 model Category {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  slug        String  @unique
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
   description String?
-  isActive    Boolean @default(true)
-  displayOrder Int    @default(0)
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -185,18 +184,16 @@ model TutorEducation {
 }
 
 model Subject {
-  id               String   @id @default(uuid())
-  categoryId       String
-  name             String
-  slug             String   @unique
-  shortDescription String?
-  longDescription  String?
-  iconKey          String?
-  heroImageUrl     String?
-  isActive         Boolean  @default(true)
-  displayOrder     Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id           String   @id @default(uuid())
+  categoryId   String
+  name         String
+  slug         String   @unique
+  description  String?
+  iconUrl      String?
+  iconPublicId String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   category Category @relation(fields: [categoryId], references: [id])
   tutors   TutorSubject[]
@@ -231,14 +228,12 @@ model LegacyTutorExpertise {
 }
 
 model Degree {
-  id           String   @id @default(uuid())
-  name         String   @unique
-  slug         String   @unique
-  level        String?
-  isActive     Boolean  @default(true)
-  displayOrder Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String   @unique
+  level     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   educations TutorEducation[]
 }

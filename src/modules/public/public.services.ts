@@ -80,7 +80,7 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
                     },
                     orderBy: {
                         subject: {
-                            displayOrder: "asc",
+                            name: "asc",
                         },
                     },
                     take: 1,
@@ -144,8 +144,8 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
             id: subject.id,
             name: subject.name,
             slug: subject.slug,
-            iconKey: subject.iconKey ?? null,
-            shortDescription: subject.shortDescription ?? null,
+            iconUrl: subject.iconUrl ?? null,
+            description: subject.description ?? null,
             categoryName: subject.category.name,
         })),
     };
@@ -168,8 +168,7 @@ export async function getPublicSubjects(): Promise<PublicSubjectsResponse> {
             },
         },
         orderBy: [
-            { category: { displayOrder: "asc" } },
-            { displayOrder: "asc" },
+            { category: { name: "asc" } },
             { name: "asc" },
         ],
     });
@@ -179,8 +178,8 @@ export async function getPublicSubjects(): Promise<PublicSubjectsResponse> {
             id: subject.id,
             name: subject.name,
             slug: subject.slug,
-            iconKey: subject.iconKey ?? null,
-            shortDescription: subject.shortDescription ?? null,
+            iconUrl: subject.iconUrl ?? null,
+            description: subject.description ?? null,
             category: {
                 id: subject.category.id,
                 name: subject.category.name,
@@ -240,10 +239,8 @@ export async function getPublicSubjectBySlug(
             id: subject.id,
             name: subject.name,
             slug: subject.slug,
-            shortDescription: subject.shortDescription ?? null,
-            longDescription: subject.longDescription ?? null,
-            iconKey: subject.iconKey ?? null,
-            heroImageUrl: subject.heroImageUrl ?? null,
+            description: subject.description ?? null,
+            iconUrl: subject.iconUrl ?? null,
             category: {
                 id: subject.category.id,
                 name: subject.category.name,

@@ -265,7 +265,7 @@ export async function getTutors(
                     },
                     orderBy: {
                         subject: {
-                            displayOrder: "asc",
+                            name: "asc",
                         },
                     },
                 },
@@ -366,7 +366,7 @@ export async function getTutorById(
                 orderBy: [
                     {
                         subject: {
-                            displayOrder: "asc",
+                            name: "asc",
                         },
                     },
                     {
@@ -500,7 +500,7 @@ export async function getMyTutorProfile(
                     orderBy: [
                         {
                             subject: {
-                                displayOrder: "asc",
+                                name: "asc",
                             },
                         },
                         {
@@ -519,7 +519,7 @@ export async function getMyTutorProfile(
             where: {
                 isActive: true,
             },
-            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+            orderBy: [{ name: "asc" }],
         }),
         prisma.subject.findMany({
             where: {
@@ -531,17 +531,13 @@ export async function getMyTutorProfile(
             include: {
                 category: true,
             },
-            orderBy: [
-                { category: { displayOrder: "asc" } },
-                { displayOrder: "asc" },
-                { name: "asc" },
-            ],
+            orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
         }),
         prisma.degree.findMany({
             where: {
                 isActive: true,
             },
-            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+            orderBy: [{ name: "asc" }],
         }),
     ]);
 
@@ -581,13 +577,12 @@ export async function getMyTutorProfile(
             categoryId: subject.categoryId,
             name: subject.name,
             slug: subject.slug,
-            shortDescription: subject.shortDescription ?? null,
-            iconKey: subject.iconKey ?? null,
+            description: subject.description ?? null,
+            iconUrl: subject.iconUrl ?? null,
         })),
         availableDegrees: degrees.map((degree) => ({
             id: degree.id,
             name: degree.name,
-            slug: degree.slug,
             level: degree.level ?? null,
         })),
     };
@@ -829,21 +824,17 @@ export async function getTutorSubjectOptions(): Promise<TutorSubjectOption[]> {
         include: {
             category: true,
         },
-        orderBy: [
-            { category: { displayOrder: "asc" } },
-            { displayOrder: "asc" },
-            { name: "asc" },
-        ],
+        orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
     });
 
     return subjects.map((subject) => ({
         id: subject.id,
         name: subject.name,
         slug: subject.slug,
-        iconKey: subject.iconKey ?? null,
+        iconUrl: subject.iconUrl ?? null,
         categoryId: subject.categoryId,
         categoryName: subject.category.name,
-        shortDescription: subject.shortDescription ?? null,
+        description: subject.description ?? null,
     }));
 }
 

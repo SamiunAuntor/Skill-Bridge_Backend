@@ -123,10 +123,10 @@ export const createAdminCategoryController = asyncHandler(async (
     const parsedPayload = validateRequest(adminCategoryCreateSchema, req.body);
     const payload = {
         name: parsedPayload.name,
-        ...(parsedPayload.slug ? { slug: parsedPayload.slug } : {}),
         description: parsedPayload.description,
-        isActive: parsedPayload.isActive,
-        displayOrder: parsedPayload.displayOrder,
+        ...(typeof parsedPayload.isActive === "boolean"
+            ? { isActive: parsedPayload.isActive }
+            : {}),
     };
     const result = await createAdminCategory(payload);
     sendSuccess(res, "Category created successfully.", result, 201);
@@ -140,10 +140,10 @@ export const updateAdminCategoryController = asyncHandler(async (
     const parsedPayload = validateRequest(adminCategoryUpdateSchema, req.body);
     const payload = {
         name: parsedPayload.name,
-        ...(parsedPayload.slug ? { slug: parsedPayload.slug } : {}),
         description: parsedPayload.description,
-        isActive: parsedPayload.isActive,
-        displayOrder: parsedPayload.displayOrder,
+        ...(typeof parsedPayload.isActive === "boolean"
+            ? { isActive: parsedPayload.isActive }
+            : {}),
     };
     const result = await updateAdminCategory(id, payload);
     sendSuccess(res, "Category updated successfully.", result);
@@ -185,15 +185,16 @@ export const createAdminSubjectController = asyncHandler(async (
     const payload = {
         categoryId: parsedPayload.categoryId,
         name: parsedPayload.name,
-        ...(parsedPayload.slug ? { slug: parsedPayload.slug } : {}),
-        shortDescription: parsedPayload.shortDescription,
-        longDescription: parsedPayload.longDescription,
-        iconKey: parsedPayload.iconKey,
-        ...(parsedPayload.heroImageUrl !== undefined
-            ? { heroImageUrl: parsedPayload.heroImageUrl }
+        description: parsedPayload.description,
+        ...(parsedPayload.iconUrl !== undefined
+            ? { iconUrl: parsedPayload.iconUrl }
             : {}),
-        isActive: parsedPayload.isActive,
-        displayOrder: parsedPayload.displayOrder,
+        ...(parsedPayload.iconPublicId !== undefined
+            ? { iconPublicId: parsedPayload.iconPublicId }
+            : {}),
+        ...(typeof parsedPayload.isActive === "boolean"
+            ? { isActive: parsedPayload.isActive }
+            : {}),
     };
     const result = await createAdminSubject(payload);
     sendSuccess(res, "Subject created successfully.", result, 201);
@@ -208,15 +209,16 @@ export const updateAdminSubjectController = asyncHandler(async (
     const payload = {
         categoryId: parsedPayload.categoryId,
         name: parsedPayload.name,
-        ...(parsedPayload.slug ? { slug: parsedPayload.slug } : {}),
-        shortDescription: parsedPayload.shortDescription,
-        longDescription: parsedPayload.longDescription,
-        iconKey: parsedPayload.iconKey,
-        ...(parsedPayload.heroImageUrl !== undefined
-            ? { heroImageUrl: parsedPayload.heroImageUrl }
+        description: parsedPayload.description,
+        ...(parsedPayload.iconUrl !== undefined
+            ? { iconUrl: parsedPayload.iconUrl }
             : {}),
-        isActive: parsedPayload.isActive,
-        displayOrder: parsedPayload.displayOrder,
+        ...(parsedPayload.iconPublicId !== undefined
+            ? { iconPublicId: parsedPayload.iconPublicId }
+            : {}),
+        ...(typeof parsedPayload.isActive === "boolean"
+            ? { isActive: parsedPayload.isActive }
+            : {}),
     };
     const result = await updateAdminSubject(id, payload);
     sendSuccess(res, "Subject updated successfully.", result);
@@ -256,10 +258,10 @@ export const createAdminDegreeController = asyncHandler(async (
     const parsedPayload = validateRequest(adminDegreeCreateSchema, req.body);
     const payload = {
         name: parsedPayload.name,
-        ...(parsedPayload.slug ? { slug: parsedPayload.slug } : {}),
         level: parsedPayload.level,
-        isActive: parsedPayload.isActive,
-        displayOrder: parsedPayload.displayOrder,
+        ...(typeof parsedPayload.isActive === "boolean"
+            ? { isActive: parsedPayload.isActive }
+            : {}),
     };
     const result = await createAdminDegree(payload);
     sendSuccess(res, "Degree created successfully.", result, 201);
@@ -273,10 +275,10 @@ export const updateAdminDegreeController = asyncHandler(async (
     const parsedPayload = validateRequest(adminDegreeUpdateSchema, req.body);
     const payload = {
         name: parsedPayload.name,
-        ...(parsedPayload.slug ? { slug: parsedPayload.slug } : {}),
         level: parsedPayload.level,
-        isActive: parsedPayload.isActive,
-        displayOrder: parsedPayload.displayOrder,
+        ...(typeof parsedPayload.isActive === "boolean"
+            ? { isActive: parsedPayload.isActive }
+            : {}),
     };
     const result = await updateAdminDegree(id, payload);
     sendSuccess(res, "Degree updated successfully.", result);

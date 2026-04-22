@@ -20,8 +20,8 @@ export interface PublicLandingResponse {
         id: string;
         name: string;
         slug: string;
-        iconKey: string | null;
-        shortDescription: string | null;
+        iconUrl: string | null;
+        description: string | null;
         categoryName: string;
     }>;
 }
@@ -31,8 +31,8 @@ export interface PublicSubjectsResponse {
         id: string;
         name: string;
         slug: string;
-        iconKey: string | null;
-        shortDescription: string | null;
+        iconUrl: string | null;
+        description: string | null;
         category: {
             id: string;
             name: string;
@@ -47,10 +47,8 @@ export interface PublicSubjectDetailResponse {
         id: string;
         name: string;
         slug: string;
-        shortDescription: string | null;
-        longDescription: string | null;
-        iconKey: string | null;
-        heroImageUrl: string | null;
+        description: string | null;
+        iconUrl: string | null;
         category: {
             id: string;
             name: string;

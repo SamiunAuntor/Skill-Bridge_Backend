@@ -60,8 +60,6 @@ function getMasterOrderBy(
     sortBy: AdminMasterSortOption
 ): Prisma.CategoryOrderByWithRelationInput[] {
     switch (sortBy) {
-        case "display_desc":
-            return [{ displayOrder: "desc" }, { name: "asc" }];
         case "name_asc":
             return [{ name: "asc" }];
         case "name_desc":
@@ -70,9 +68,8 @@ function getMasterOrderBy(
             return [{ createdAt: "desc" }];
         case "oldest":
             return [{ createdAt: "asc" }];
-        case "display_asc":
         default:
-            return [{ displayOrder: "asc" }, { name: "asc" }];
+            return [{ name: "asc" }];
     }
 }
 
@@ -80,8 +77,6 @@ function getSubjectOrderBy(
     sortBy: AdminMasterSortOption
 ): Prisma.SubjectOrderByWithRelationInput[] {
     switch (sortBy) {
-        case "display_desc":
-            return [{ displayOrder: "desc" }, { name: "asc" }];
         case "name_asc":
             return [{ name: "asc" }];
         case "name_desc":
@@ -90,9 +85,8 @@ function getSubjectOrderBy(
             return [{ createdAt: "desc" }];
         case "oldest":
             return [{ createdAt: "asc" }];
-        case "display_asc":
         default:
-            return [{ displayOrder: "asc" }, { name: "asc" }];
+            return [{ name: "asc" }];
     }
 }
 
@@ -100,8 +94,6 @@ function getDegreeOrderBy(
     sortBy: AdminMasterSortOption
 ): Prisma.DegreeOrderByWithRelationInput[] {
     switch (sortBy) {
-        case "display_desc":
-            return [{ displayOrder: "desc" }, { name: "asc" }];
         case "name_asc":
             return [{ name: "asc" }];
         case "name_desc":
@@ -110,9 +102,8 @@ function getDegreeOrderBy(
             return [{ createdAt: "desc" }];
         case "oldest":
             return [{ createdAt: "asc" }];
-        case "display_asc":
         default:
-            return [{ displayOrder: "asc" }, { name: "asc" }];
+            return [{ name: "asc" }];
     }
 }
 
@@ -205,7 +196,6 @@ export function buildAdminCategoriesQuery(filters: AdminCategoriesQuery) {
         )
         .search(filters.q, (searchTerm) => [
             { name: { contains: searchTerm, mode: "insensitive" } },
-            { slug: { contains: searchTerm, mode: "insensitive" } },
             { description: { contains: searchTerm, mode: "insensitive" } },
         ])
         .sort(filters.sortBy, getMasterOrderBy)
@@ -235,8 +225,7 @@ export function buildAdminSubjectsQuery(filters: AdminSubjectsQuery) {
         )
         .search(filters.q, (searchTerm) => [
             { name: { contains: searchTerm, mode: "insensitive" } },
-            { slug: { contains: searchTerm, mode: "insensitive" } },
-            { shortDescription: { contains: searchTerm, mode: "insensitive" } },
+            { description: { contains: searchTerm, mode: "insensitive" } },
             { category: { name: { contains: searchTerm, mode: "insensitive" } } },
         ])
         .sort(filters.sortBy, getSubjectOrderBy)
@@ -259,7 +248,6 @@ export function buildAdminDegreesQuery(filters: AdminDegreesQuery) {
         )
         .search(filters.q, (searchTerm) => [
             { name: { contains: searchTerm, mode: "insensitive" } },
-            { slug: { contains: searchTerm, mode: "insensitive" } },
             { level: { contains: searchTerm, mode: "insensitive" } },
         ])
         .sort(filters.sortBy, getDegreeOrderBy)
