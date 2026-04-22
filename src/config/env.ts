@@ -79,4 +79,11 @@ export const env = {
     ZOOM_ACCOUNT_ID: process.env.ZOOM_ACCOUNT_ID,
     ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID,
     ZOOM_CLIENT_SECRET: process.env.ZOOM_CLIENT_SECRET,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY?.trim() || undefined,
+    STRIPE_WEBHOOK_SECRET:
+        process.env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,
+    STRIPE_PUBLISHABLE_KEY:
+        process.env.STRIPE_PUBLISHABLE_KEY?.trim() || undefined,
+    PAYMENT_CURRENCY:
+        process.env.PAYMENT_CURRENCY?.trim().toLowerCase() || "usd",
 };

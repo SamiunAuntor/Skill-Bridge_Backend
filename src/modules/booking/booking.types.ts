@@ -27,7 +27,12 @@ export interface SessionListItem {
     bookingId: string;
     sessionId: string;
     reviewId: string | null;
-    bookingStatus: "confirmed" | "completed" | "cancelled" | "no_show";
+    bookingStatus:
+        | "pending_payment"
+        | "confirmed"
+        | "completed"
+        | "cancelled"
+        | "no_show";
     sessionStatus: "scheduled" | "ongoing" | "completed" | "cancelled";
     sessionDate: string;
     startTime: string;

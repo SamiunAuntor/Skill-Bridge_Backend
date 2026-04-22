@@ -9,6 +9,9 @@ import adminRouter from "./modules/admin/admin.router";
 import availabilityRouter from "./modules/availability/availability.router";
 import bookingRouter from "./modules/booking/booking.router";
 import publicRouter from "./modules/public/public.router";
+import paymentRouter, {
+    paymentWebhookRouter,
+} from "./modules/payment/payment.router";
 import reviewRouter from "./modules/review/review.router";
 import studentRouter from "./modules/student/student.router";
 import tutorRouter from "./modules/tutor/tutor.router";
@@ -25,6 +28,11 @@ app.use(
 
 // Better Auth reads the raw body; keep it isolated from app-auth JWT routes.
 app.all("/api/auth/core/{*any}", toNodeHandler(auth));
+app.use(
+    "/api/payments/webhooks/stripe",
+    express.raw({ type: "application/json" }),
+    paymentWebhookRouter
+);
 
 app.use(express.json());
 app.use("/api/auth", authRouter);
@@ -32,6 +40,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/public", publicRouter);
 app.use("/api/availability", availabilityRouter);
 app.use("/api/bookings", bookingRouter);
+app.use("/api/payments", paymentRouter);
 app.use("/api/reviews", reviewRouter);
 app.use("/api/students", studentRouter);
 app.use("/api/tutors", tutorRouter);

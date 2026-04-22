@@ -21,6 +21,7 @@ enum Role {
 }
 
 enum BookingStatus {
+  pending_payment
   confirmed
   completed
   cancelled
@@ -31,6 +32,16 @@ enum PaymentStatus {
   pending
   paid
   failed
+}
+
+enum PaymentIntentStatus {
+  requires_payment_method
+  requires_confirmation
+  requires_action
+  processing
+  succeeded
+  cancelled
+  requires_capture
 }
 
 enum SessionStatus {
@@ -260,6 +271,7 @@ model Booking {
   slotId    String @unique
 
   status BookingStatus
+  holdExpiresAt DateTime?
 
   sessionDate DateTime
   startTime   DateTime
@@ -287,6 +299,7 @@ model Booking {
   cancelledBy User?            @relation("BookingCancelledBy", fields: [cancelledByUserId], references: [id])
 
   session       Session?
+  payment       Payment?
   review        Review?
   notifications Notification[]
 
@@ -295,8 +308,36 @@ model Booking {
   @@index([status])
   @@index([sessionDate])
   @@index([paymentStatus])
+  @@index([holdExpiresAt])
   @@index([studentId, status])
   @@index([tutorId, status])
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  bookingId String @unique
+
+  stripePaymentIntentId String @unique
+  stripeCustomerId      String?
+  amountInCents         Int
+  currency              String              @default("usd")
+  paymentMethod         String?
+  last4Digits           String?
+  cardBrand             String?
+  status                PaymentIntentStatus @default(requires_payment_method)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  confirmedAt           DateTime?
+  failedAt              DateTime?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([stripePaymentIntentId])
+  @@index([stripeCustomerId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // SESSION
