@@ -131,7 +131,9 @@ export const adminSubjectsQuerySchema = adminCategoriesQuerySchema.extend({
     categoryId: optionalTrimmedString,
 });
 
-export const adminDegreesQuerySchema = adminCategoriesQuerySchema;
+export const adminDegreesQuerySchema = adminCategoriesQuerySchema.extend({
+    categoryId: optionalTrimmedString,
+});
 
 export const adminCategoryCreateSchema = z.object({
     name: z.string().trim().min(1, "Category name is required."),
@@ -157,6 +159,7 @@ export const adminSubjectCreateSchema = z.object({
 export const adminSubjectUpdateSchema = adminSubjectCreateSchema;
 
 export const adminDegreeCreateSchema = z.object({
+    categoryId: z.string().trim().min(1, "Category is required."),
     name: z.string().trim().min(1, "Degree name is required."),
     level: z.string().trim().nullish().transform((value) => value || null),
     isActive: z.boolean().optional(),

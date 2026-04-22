@@ -145,6 +145,7 @@ model Category {
 
   tutors   TutorCategory[]
   subjects Subject[]
+  degrees  Degree[]
 }
 
 // TUTOR CATEGORY (M:N)
@@ -169,7 +170,6 @@ model TutorEducation {
   tutorId   String
   degreeId  String
   institution  String
-  fieldOfStudy String
   startYear    Int
   endYear      Int?
   description  String?
@@ -212,13 +212,17 @@ model TutorSubject {
 
 model Degree {
   id        String   @id @default(uuid())
+  categoryId String
   name      String   @unique
   level     String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  category Category        @relation(fields: [categoryId], references: [id])
   educations TutorEducation[]
+
+  @@index([categoryId, isActive])
 }
 
 // AVAILABILITY

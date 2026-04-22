@@ -240,6 +240,7 @@ export const getAdminDegreesController = asyncHandler(async (
     const parsedQuery = validateRequest(adminDegreesQuerySchema, req.query);
     const query = {
         ...(parsedQuery.q ? { q: parsedQuery.q } : {}),
+        ...(parsedQuery.categoryId ? { categoryId: parsedQuery.categoryId } : {}),
         ...(typeof parsedQuery.isActive === "boolean"
             ? { isActive: parsedQuery.isActive }
             : {}),
@@ -257,6 +258,7 @@ export const createAdminDegreeController = asyncHandler(async (
 ): Promise<void> => {
     const parsedPayload = validateRequest(adminDegreeCreateSchema, req.body);
     const payload = {
+        categoryId: parsedPayload.categoryId,
         name: parsedPayload.name,
         level: parsedPayload.level,
         ...(typeof parsedPayload.isActive === "boolean"
@@ -274,6 +276,7 @@ export const updateAdminDegreeController = asyncHandler(async (
     const { id } = validateRequest(adminEntityIdParamsSchema, req.params);
     const parsedPayload = validateRequest(adminDegreeUpdateSchema, req.body);
     const payload = {
+        categoryId: parsedPayload.categoryId,
         name: parsedPayload.name,
         level: parsedPayload.level,
         ...(typeof parsedPayload.isActive === "boolean"

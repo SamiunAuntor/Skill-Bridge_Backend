@@ -52,10 +52,13 @@ function toEditableEducation(input: {
     id: string;
     degreeId: string;
     degreeOption: {
+        categoryId: string;
         name: string;
+        category: {
+            name: string;
+        };
     };
     institution: string;
-    fieldOfStudy: string;
     startYear: number;
     endYear: number | null;
     description: string | null;
@@ -63,8 +66,8 @@ function toEditableEducation(input: {
     return {
         id: input.id,
         degreeId: input.degreeId,
+        categoryId: input.degreeOption.categoryId,
         institution: input.institution,
-        fieldOfStudy: input.fieldOfStudy,
         startYear: input.startYear,
         endYear: input.endYear,
         description: input.description,
@@ -355,7 +358,13 @@ export async function getTutorById(
                 include: {
                     degreeOption: {
                         select: {
+                            categoryId: true,
                             name: true,
+                            category: {
+                                select: {
+                                    name: true,
+                                },
+                            },
                         },
                     },
                 },
@@ -422,8 +431,8 @@ export async function getTutorById(
             education: tutor.education.map((item) => ({
                 id: item.id,
                 degree: item.degreeOption.name,
+                categoryName: item.degreeOption.category.name,
                 institution: item.institution,
-                fieldOfStudy: item.fieldOfStudy,
                 startYear: item.startYear,
                 endYear: item.endYear,
                 description: item.description,
@@ -486,7 +495,13 @@ export async function getMyTutorProfile(
                     include: {
                         degreeOption: {
                             select: {
+                                categoryId: true,
                                 name: true,
+                                category: {
+                                    select: {
+                                        name: true,
+                                    },
+                                },
                             },
                         },
                     },
@@ -515,6 +530,12 @@ export async function getMyTutorProfile(
         prisma.degree.findMany({
             where: {
                 isActive: true,
+                category: {
+                    isActive: true,
+                },
+            },
+            include: {
+                category: true,
             },
             orderBy: [{ name: "asc" }],
         }),
@@ -561,6 +582,8 @@ export async function getMyTutorProfile(
         })),
         availableDegrees: degrees.map((degree) => ({
             id: degree.id,
+            categoryId: degree.categoryId,
+            categoryName: degree.category.name,
             name: degree.name,
             level: degree.level ?? null,
         })),
@@ -588,16 +611,30 @@ export async function updateMyTutorProfile(
     const normalizedEducation = payload.education.map((item) => ({
         ...item,
         institution: item.institution.trim(),
-        fieldOfStudy: item.fieldOfStudy?.trim() ?? "",
         description: item.description?.trim() || null,
     }));
 
-    const [validCategories, validSubjects, validDegrees, existingEducation] =
+    const uniqueEducationCategoryIds = [
+        ...new Set(normalizedEducation.map((item) => item.categoryId)),
+    ];
+
+    const [validTeachingCategories, validEducationCategories, validSubjects, validDegrees, existingEducation] =
         await Promise.all([
             prisma.category.findMany({
                 where: {
                     id: {
                         in: uniqueCategoryIds,
+                    },
+                    isActive: true,
+                },
+                select: {
+                    id: true,
+                },
+            }),
+            prisma.category.findMany({
+                where: {
+                    id: {
+                        in: uniqueEducationCategoryIds,
                     },
                     isActive: true,
                 },
@@ -628,6 +665,12 @@ export async function updateMyTutorProfile(
                 select: {
                     id: true,
                     name: true,
+                    categoryId: true,
+                    category: {
+                        select: {
+                            isActive: true,
+                        },
+                    },
                 },
             }),
             prisma.tutorEducation.findMany({
@@ -636,17 +679,26 @@ export async function updateMyTutorProfile(
             }),
         ]);
 
-    if (validCategories.length !== uniqueCategoryIds.length) {
+    if (validTeachingCategories.length !== uniqueCategoryIds.length) {
         throw new HttpError(400, "One or more selected categories are invalid.");
+    }
+
+    if (validEducationCategories.length !== uniqueEducationCategoryIds.length) {
+        throw new HttpError(
+            400,
+            "One or more selected education categories are invalid."
+        );
     }
 
     if (validSubjects.length !== uniqueSubjectIds.length) {
         throw new HttpError(400, "One or more selected subjects are invalid.");
     }
 
-    const allowedCategoryIds = new Set(validCategories.map((item) => item.id));
+    const allowedTeachingCategoryIds = new Set(
+        validTeachingCategories.map((item) => item.id)
+    );
     for (const subject of validSubjects) {
-        if (!allowedCategoryIds.has(subject.categoryId)) {
+        if (!allowedTeachingCategoryIds.has(subject.categoryId)) {
             throw new HttpError(
                 400,
                 "Each selected subject must belong to one of the selected categories."
@@ -654,11 +706,20 @@ export async function updateMyTutorProfile(
         }
     }
 
-    const degreeMap = new Map(validDegrees.map((item) => [item.id, item.name]));
-
     for (const educationItem of normalizedEducation) {
-        if (!degreeMap.has(educationItem.degreeId)) {
+        const matchedDegree = validDegrees.find(
+            (item) => item.id === educationItem.degreeId
+        );
+
+        if (!matchedDegree) {
             throw new HttpError(400, "One or more selected degrees are invalid.");
+        }
+
+        if (matchedDegree.categoryId !== educationItem.categoryId) {
+            throw new HttpError(
+                400,
+                "Each education degree must belong to its selected education category."
+            );
         }
     }
 
@@ -751,7 +812,6 @@ export async function updateMyTutorProfile(
                 const data = {
                     degreeId: educationItem.degreeId,
                     institution: educationItem.institution,
-                    fieldOfStudy: educationItem.fieldOfStudy,
                     startYear: educationItem.startYear,
                     endYear: educationItem.endYear ?? null,
                     description: educationItem.description,

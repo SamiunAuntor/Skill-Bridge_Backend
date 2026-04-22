@@ -92,8 +92,8 @@ export interface TutorDetailResponse {
         education: Array<{
             id: string;
             degree: string;
+            categoryName: string;
             institution: string;
-            fieldOfStudy: string;
             startYear: number;
             endYear: number | null;
             description: string | null;
@@ -134,6 +134,8 @@ export interface TutorEditableSubjectOption {
 
 export interface TutorEditableDegreeOption {
     id: string;
+    categoryId: string;
+    categoryName: string;
     name: string;
     level: string | null;
 }
@@ -149,8 +151,8 @@ export interface TutorEditableSubjectItem {
 export interface TutorEditableEducationItem {
     id: string;
     degreeId: string;
+    categoryId: string;
     institution: string;
-    fieldOfStudy: string;
     startYear: number;
     endYear: number | null;
     description: string | null;
@@ -196,8 +198,8 @@ export interface TutorProfileUpdateSubjectInput {
 export interface TutorProfileUpdateEducationInput {
     id?: string;
     degreeId: string;
+    categoryId: string;
     institution: string;
-    fieldOfStudy?: string | undefined;
     startYear: number;
     endYear?: number | null | undefined;
     description?: string | null | undefined;

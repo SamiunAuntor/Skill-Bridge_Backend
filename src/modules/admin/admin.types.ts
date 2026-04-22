@@ -147,7 +147,9 @@ export interface AdminSubjectsQuery extends AdminCategoriesQuery {
     categoryId?: string;
 }
 
-export interface AdminDegreesQuery extends AdminCategoriesQuery {}
+export interface AdminDegreesQuery extends AdminCategoriesQuery {
+    categoryId?: string;
+}
 
 export interface AdminCategoriesResponse {
     categories: Array<{
@@ -183,6 +185,8 @@ export interface AdminSubjectsResponse {
 export interface AdminDegreesResponse {
     degrees: Array<{
         id: string;
+        categoryId: string;
+        categoryName: string;
         name: string;
         level: string | null;
         isActive: boolean;
@@ -209,6 +213,7 @@ export interface AdminSubjectUpsertInput {
 }
 
 export interface AdminDegreeUpsertInput {
+    categoryId: string;
     name: string;
     level?: string | null;
     isActive?: boolean;

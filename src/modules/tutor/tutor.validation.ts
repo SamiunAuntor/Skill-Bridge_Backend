@@ -190,12 +190,15 @@ export const tutorProfileUpdateSchema = z.object({
         z
             .object({
                 id: z.string().trim().min(1).optional(),
+                categoryId: z
+                    .string()
+                    .trim()
+                    .min(1, "Each education entry needs an education category."),
                 degreeId: z.string().trim().min(1, "Each education entry needs a degree."),
                 institution: z
                     .string()
                     .trim()
                     .min(1, "Each education entry needs an institution name."),
-                fieldOfStudy: z.string().trim().optional().default(""),
                 startYear: requiredYear("startYear"),
                 endYear: z
                     .union([z.coerce.number(), z.null()])

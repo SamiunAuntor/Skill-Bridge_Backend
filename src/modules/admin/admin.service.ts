@@ -477,6 +477,7 @@ export async function deleteAdminCategory(id: string): Promise<void> {
                 select: {
                     subjects: true,
                     tutors: true,
+                    degrees: true,
                 },
             },
         },
@@ -486,10 +487,14 @@ export async function deleteAdminCategory(id: string): Promise<void> {
         throw new HttpError(404, "Category not found.");
     }
 
-    if (category._count.subjects > 0 || category._count.tutors > 0) {
+    if (
+        category._count.subjects > 0 ||
+        category._count.tutors > 0 ||
+        category._count.degrees > 0
+    ) {
         throw new HttpError(
             400,
-            "This category is still in use. Remove linked subjects and tutors or deactivate it instead."
+            "This category is still in use. Remove linked subjects, degrees, and tutors or deactivate it instead."
         );
     }
 
@@ -695,6 +700,7 @@ export async function getAdminDegrees(
                 }
                 : {}),
             include: {
+                category: true,
                 _count: {
                     select: {
                         educations: true,
@@ -707,6 +713,8 @@ export async function getAdminDegrees(
     return {
         degrees: degrees.map((degree) => ({
             id: degree.id,
+            categoryId: degree.categoryId,
+            categoryName: degree.category.name,
             name: degree.name,
             level: degree.level ?? null,
             isActive: degree.isActive,
@@ -719,10 +727,20 @@ export async function getAdminDegrees(
 }
 
 export async function createAdminDegree(input: AdminDegreeUpsertInput) {
+    const category = await prisma.category.findUnique({
+        where: { id: input.categoryId },
+        select: { id: true, isActive: true },
+    });
+
+    if (!category) {
+        throw new HttpError(400, "Selected category is invalid.");
+    }
+
     const name = input.name.trim();
 
     return prisma.degree.create({
         data: {
+            categoryId: input.categoryId,
             name,
             level: input.level?.trim() || null,
             isActive: input.isActive ?? true,
@@ -743,11 +761,21 @@ export async function updateAdminDegree(
         throw new HttpError(404, "Degree not found.");
     }
 
+    const category = await prisma.category.findUnique({
+        where: { id: input.categoryId },
+        select: { id: true, isActive: true },
+    });
+
+    if (!category) {
+        throw new HttpError(400, "Selected category is invalid.");
+    }
+
     const name = input.name.trim();
 
     return prisma.degree.update({
         where: { id },
         data: {
+            categoryId: input.categoryId,
             name,
             level: input.level?.trim() || null,
             ...(typeof input.isActive === "boolean"

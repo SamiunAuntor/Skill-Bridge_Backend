@@ -242,6 +242,11 @@ export function buildAdminDegreesQuery(filters: AdminDegreesQuery) {
         Prisma.DegreeOrderByWithRelationInput
     >({})
         .filter(
+            filters.categoryId
+                ? { categoryId: filters.categoryId }
+                : null
+        )
+        .filter(
             typeof filters.isActive === "boolean"
                 ? { isActive: filters.isActive }
                 : null
@@ -249,6 +254,7 @@ export function buildAdminDegreesQuery(filters: AdminDegreesQuery) {
         .search(filters.q, (searchTerm) => [
             { name: { contains: searchTerm, mode: "insensitive" } },
             { level: { contains: searchTerm, mode: "insensitive" } },
+            { category: { name: { contains: searchTerm, mode: "insensitive" } } },
         ])
         .sort(filters.sortBy, getDegreeOrderBy)
         .paginate({
