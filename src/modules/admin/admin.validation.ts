@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { BookingStatus, PaymentStatus } from "../../generated/prisma/client";
+import {
+    BookingStatus,
+    PaymentStatus,
+    PlatformReviewStatus,
+} from "../../generated/prisma/client";
 import {
     adminBookingSortOptions,
     adminMasterSortOptions,
@@ -169,4 +173,19 @@ export const adminDegreeUpdateSchema = adminDegreeCreateSchema;
 
 export const adminEntityIdParamsSchema = z.object({
     id: z.string().trim().min(1, "Identifier is required."),
+});
+
+export const adminPlatformReviewsQuerySchema = z.object({
+    q: optionalTrimmedString,
+    status: z.nativeEnum(PlatformReviewStatus).optional(),
+    sortBy: z
+        .enum(["newest", "oldest", "rating_high", "rating_low"])
+        .optional()
+        .default("newest"),
+    page: positiveIntegerFromQuery("page", adminQueryDefaults.page),
+    limit: positiveIntegerFromQuery("limit", adminQueryDefaults.limit),
+});
+
+export const adminPlatformReviewStatusUpdateSchema = z.object({
+    status: z.nativeEnum(PlatformReviewStatus),
 });

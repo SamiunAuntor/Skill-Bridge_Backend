@@ -1,4 +1,9 @@
-import { BookingStatus, PaymentStatus } from "../../generated/prisma/client";
+import {
+    BookingStatus,
+    PaymentStatus,
+    PlatformReviewStatus,
+    Prisma,
+} from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
 import { toDisplayName } from "../../shared/utils";
 import { HttpError } from "../../utils/http-error";
@@ -20,6 +25,9 @@ import {
     AdminDegreesQuery,
     AdminDegreesResponse,
     AdminDegreeUpsertInput,
+    AdminPlatformReviewsQuery,
+    AdminPlatformReviewsResponse,
+    AdminPlatformReviewStatusUpdateInput,
     AdminSubjectsQuery,
     AdminSubjectsResponse,
     AdminSubjectUpsertInput,
@@ -810,5 +818,128 @@ export async function deleteAdminDegree(id: string): Promise<void> {
 
     await prisma.degree.delete({
         where: { id },
+    });
+}
+
+function getPlatformReviewOrderBy(
+    sortBy: AdminPlatformReviewsQuery["sortBy"]
+): Prisma.PlatformReviewOrderByWithRelationInput[] {
+    switch (sortBy) {
+        case "oldest":
+            return [{ createdAt: "asc" }];
+        case "rating_high":
+            return [{ rating: "desc" }, { createdAt: "desc" }];
+        case "rating_low":
+            return [{ rating: "asc" }, { createdAt: "desc" }];
+        case "newest":
+        default:
+            return [{ createdAt: "desc" }];
+    }
+}
+
+export async function getAdminPlatformReviews(
+    filters: AdminPlatformReviewsQuery
+): Promise<AdminPlatformReviewsResponse> {
+    const where: Prisma.PlatformReviewWhereInput = {
+        deletedAt: null,
+        ...(filters.status ? { status: filters.status } : {}),
+        ...(filters.q
+            ? {
+                  OR: [
+                      { title: { contains: filters.q, mode: "insensitive" } },
+                      { message: { contains: filters.q, mode: "insensitive" } },
+                      { user: { name: { contains: filters.q, mode: "insensitive" } } },
+                      { user: { email: { contains: filters.q, mode: "insensitive" } } },
+                      { user: { firstName: { contains: filters.q, mode: "insensitive" } } },
+                      { user: { lastName: { contains: filters.q, mode: "insensitive" } } },
+                  ],
+              }
+            : {}),
+    };
+
+    const [totalItems, reviews] = await Promise.all([
+        prisma.platformReview.count({ where }),
+        prisma.platformReview.findMany({
+            where,
+            orderBy: getPlatformReviewOrderBy(filters.sortBy),
+            skip: (filters.page - 1) * filters.limit,
+            take: filters.limit,
+            include: {
+                user: true,
+            },
+        }),
+    ]);
+
+    return {
+        reviews: reviews.map((review) => ({
+            id: review.id,
+            rating: review.rating,
+            title: review.title ?? null,
+            message: review.message,
+            status: review.status,
+            createdAt: review.createdAt.toISOString(),
+            user: {
+                id: review.user.id,
+                name: toDisplayName(review.user),
+                email: review.user.email,
+                avatarUrl: review.user.image ?? null,
+            },
+        })),
+        pagination: getPagination(filters.page, filters.limit, totalItems),
+        filters,
+    };
+}
+
+export async function updateAdminPlatformReviewStatus(
+    id: string,
+    input: AdminPlatformReviewStatusUpdateInput
+): Promise<{ id: string; status: PlatformReviewStatus }> {
+    const existing = await prisma.platformReview.findFirst({
+        where: {
+            id,
+            deletedAt: null,
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (!existing) {
+        throw new HttpError(404, "Platform review not found.");
+    }
+
+    return prisma.platformReview.update({
+        where: { id },
+        data: {
+            status: input.status,
+        },
+        select: {
+            id: true,
+            status: true,
+        },
+    });
+}
+
+export async function deleteAdminPlatformReview(id: string): Promise<void> {
+    const existing = await prisma.platformReview.findFirst({
+        where: {
+            id,
+            deletedAt: null,
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (!existing) {
+        throw new HttpError(404, "Platform review not found.");
+    }
+
+    await prisma.platformReview.update({
+        where: { id },
+        data: {
+            deletedAt: new Date(),
+            status: PlatformReviewStatus.hidden,
+        },
     });
 }

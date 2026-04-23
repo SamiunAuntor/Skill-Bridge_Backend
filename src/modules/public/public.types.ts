@@ -24,6 +24,18 @@ export interface PublicLandingResponse {
         description: string | null;
         categoryName: string;
     }>;
+    platformReviews: Array<{
+        id: string;
+        rating: number;
+        title: string | null;
+        message: string;
+        createdAt: string;
+        user: {
+            id: string;
+            name: string;
+            avatarUrl: string | null;
+        };
+    }>;
 }
 
 export interface PublicSubjectsResponse {

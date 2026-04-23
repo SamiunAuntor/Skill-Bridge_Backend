@@ -1,4 +1,9 @@
-import type { BookingStatus, PaymentStatus, Role } from "../../generated/prisma/client";
+import type {
+    BookingStatus,
+    PaymentStatus,
+    PlatformReviewStatus,
+    Role,
+} from "../../generated/prisma/client";
 
 export const adminUserSortOptions = [
     "newest",
@@ -217,4 +222,35 @@ export interface AdminDegreeUpsertInput {
     name: string;
     level?: string | null;
     isActive?: boolean;
+}
+
+export interface AdminPlatformReviewsQuery {
+    q?: string;
+    status?: PlatformReviewStatus;
+    sortBy: "newest" | "oldest" | "rating_high" | "rating_low";
+    page: number;
+    limit: number;
+}
+
+export interface AdminPlatformReviewsResponse {
+    reviews: Array<{
+        id: string;
+        rating: number;
+        title: string | null;
+        message: string;
+        status: PlatformReviewStatus;
+        createdAt: string;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            avatarUrl: string | null;
+        };
+    }>;
+    pagination: AdminPagination;
+    filters: AdminPlatformReviewsQuery;
+}
+
+export interface AdminPlatformReviewStatusUpdateInput {
+    status: PlatformReviewStatus;
 }

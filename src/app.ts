@@ -12,6 +12,7 @@ import publicRouter from "./modules/public/public.router";
 import paymentRouter, {
     paymentWebhookRouter,
 } from "./modules/payment/payment.router";
+import platformReviewRouter from "./modules/platform-review/platform-review.router";
 import reviewRouter from "./modules/review/review.router";
 import studentRouter from "./modules/student/student.router";
 import tutorRouter from "./modules/tutor/tutor.router";
@@ -41,6 +42,7 @@ app.use("/api/public", publicRouter);
 app.use("/api/availability", availabilityRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/payments", paymentRouter);
+app.use("/api/platform-reviews", platformReviewRouter);
 app.use("/api/reviews", reviewRouter);
 app.use("/api/students", studentRouter);
 app.use("/api/tutors", tutorRouter);

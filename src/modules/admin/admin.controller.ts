@@ -9,15 +9,18 @@ import {
     createAdminSubject,
     deleteAdminCategory,
     deleteAdminDegree,
+    deleteAdminPlatformReview,
     deleteAdminSubject,
     getAdminBookings,
     getAdminCategories,
     getAdminDashboardData,
     getAdminDegrees,
+    getAdminPlatformReviews,
     getAdminSubjects,
     getAdminUsers,
     updateAdminCategory,
     updateAdminDegree,
+    updateAdminPlatformReviewStatus,
     updateAdminSubject,
     updateAdminUserStatus,
 } from "./admin.service";
@@ -30,6 +33,8 @@ import {
     adminDegreeCreateSchema,
     adminDegreeUpdateSchema,
     adminEntityIdParamsSchema,
+    adminPlatformReviewsQuerySchema,
+    adminPlatformReviewStatusUpdateSchema,
     adminSubjectsQuerySchema,
     adminSubjectCreateSchema,
     adminSubjectUpdateSchema,
@@ -294,4 +299,39 @@ export const deleteAdminDegreeController = asyncHandler(async (
     const { id } = validateRequest(adminEntityIdParamsSchema, req.params);
     await deleteAdminDegree(id);
     sendSuccess(res, "Degree deleted successfully.", null);
+});
+
+export const getAdminPlatformReviewsController = asyncHandler(async (
+    req: Request,
+    res: Response
+): Promise<void> => {
+    const parsedQuery = validateRequest(adminPlatformReviewsQuerySchema, req.query);
+    const query = {
+        ...(parsedQuery.q ? { q: parsedQuery.q } : {}),
+        ...(parsedQuery.status ? { status: parsedQuery.status } : {}),
+        sortBy: parsedQuery.sortBy,
+        page: parsedQuery.page,
+        limit: parsedQuery.limit,
+    };
+    const result = await getAdminPlatformReviews(query);
+    sendSuccess(res, "Platform reviews fetched successfully.", result);
+});
+
+export const updateAdminPlatformReviewStatusController = asyncHandler(async (
+    req: Request,
+    res: Response
+): Promise<void> => {
+    const { id } = validateRequest(adminEntityIdParamsSchema, req.params);
+    const payload = validateRequest(adminPlatformReviewStatusUpdateSchema, req.body);
+    const result = await updateAdminPlatformReviewStatus(id, payload);
+    sendSuccess(res, "Platform review status updated successfully.", result);
+});
+
+export const deleteAdminPlatformReviewController = asyncHandler(async (
+    req: Request,
+    res: Response
+): Promise<void> => {
+    const { id } = validateRequest(adminEntityIdParamsSchema, req.params);
+    await deleteAdminPlatformReview(id);
+    sendSuccess(res, "Platform review deleted successfully.", null);
 });

@@ -74,6 +74,11 @@ enum NotificationStatus {
   failed
 }
 
+enum PlatformReviewStatus {
+  visible
+  hidden
+}
+
 // USER
 
 model User {
@@ -98,6 +103,7 @@ model User {
   bookings          Booking[]      @relation("StudentBookings")
   cancelledBookings Booking[]      @relation("BookingCancelledBy")
   reviews           Review[]
+  platformReviews   PlatformReview[]
   notifications     Notification[]
 
   accounts Account[]
@@ -129,7 +135,7 @@ model TutorProfile {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   categories   TutorCategory[]
   education    TutorEducation[]
@@ -386,6 +392,27 @@ model Review {
   booking Booking      @relation(fields: [bookingId], references: [id])
   student User         @relation(fields: [studentId], references: [id])
   tutor   TutorProfile @relation(fields: [tutorId], references: [id])
+}
+
+model PlatformReview {
+  id String @id @default(uuid())
+
+  userId  String
+  rating  Int
+  title   String?
+  message String
+
+  status PlatformReviewStatus @default(visible)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status, createdAt])
+  @@index([deletedAt])
 }
 
 model Notification {

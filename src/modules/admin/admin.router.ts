@@ -6,15 +6,18 @@ import {
     createAdminSubjectController,
     deleteAdminCategoryController,
     deleteAdminDegreeController,
+    deleteAdminPlatformReviewController,
     deleteAdminSubjectController,
     getAdminBookingsController,
     getAdminCategoriesController,
     getAdminDashboardController,
     getAdminDegreesController,
+    getAdminPlatformReviewsController,
     getAdminSubjectsController,
     getAdminUsersController,
     updateAdminCategoryController,
     updateAdminDegreeController,
+    updateAdminPlatformReviewStatusController,
     updateAdminSubjectController,
     updateAdminUserStatusController,
 } from "./admin.controller";
@@ -42,5 +45,12 @@ adminRouter.get("/degrees", getAdminDegreesController);
 adminRouter.post("/degrees", createAdminDegreeController);
 adminRouter.patch("/degrees/:id", updateAdminDegreeController);
 adminRouter.delete("/degrees/:id", deleteAdminDegreeController);
+
+adminRouter.get("/platform-reviews", getAdminPlatformReviewsController);
+adminRouter.patch(
+    "/platform-reviews/:id/status",
+    updateAdminPlatformReviewStatusController
+);
+adminRouter.delete("/platform-reviews/:id", deleteAdminPlatformReviewController);
 
 export default adminRouter;

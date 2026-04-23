@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.config";
 import { normalizeText, toDisplayName } from "../../shared/utils";
+import { PlatformReviewStatus } from "../../generated/prisma/client";
 import { HttpError } from "../../utils/http-error";
 import {
     PublicLandingResponse,
@@ -23,6 +24,7 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
         averageRatingAggregate,
         featuredTutors,
         subjects,
+        platformReviews,
     ] = await Promise.all([
         prisma.subject.count({
             where: {
@@ -110,6 +112,23 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
                 category: true,
             },
         }),
+        prisma.platformReview.findMany({
+            where: {
+                deletedAt: null,
+                status: PlatformReviewStatus.visible,
+                user: {
+                    deletedAt: null,
+                    isBanned: false,
+                },
+            },
+            include: {
+                user: true,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+            take: 6,
+        }),
     ]);
 
     return {
@@ -140,6 +159,18 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
             iconUrl: subject.iconUrl ?? null,
             description: subject.description ?? null,
             categoryName: subject.category.name,
+        })),
+        platformReviews: platformReviews.map((review) => ({
+            id: review.id,
+            rating: review.rating,
+            title: review.title ?? null,
+            message: review.message,
+            createdAt: review.createdAt.toISOString(),
+            user: {
+                id: review.user.id,
+                name: toDisplayName(review.user),
+                avatarUrl: review.user.image ?? null,
+            },
         })),
     };
 }
