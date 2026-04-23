@@ -2,7 +2,7 @@ import { z } from "zod";
 import { sessionSortOptions } from "./booking.types";
 
 export const bookingIdParamsSchema = z.object({
-    bookingId: z.string().trim().min(1, "bookingId is required."),
+    bookingId: z.string().trim().min(1, "Booking is required."),
 });
 
 export const sessionListQuerySchema = z.object({

@@ -28,7 +28,7 @@ const optionalNullableHttpsUrl = z
         } catch {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "profileImageUrl must be a valid URL.",
+                message: "Profile image must be a valid image URL.",
             });
             return z.NEVER;
         }

@@ -108,7 +108,7 @@ const optionalNullableHttpsUrl = z
         } catch {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "profileImageUrl must be a valid URL.",
+                message: "Profile image must be a valid image URL.",
             });
             return z.NEVER;
         }
@@ -161,28 +161,30 @@ export const tutorIdParamsSchema = z.object({
 
 export const tutorProfileUpdateSchema = z.object({
     profileImageUrl: optionalNullableHttpsUrl,
-    professionalTitle: z.string().trim(),
+    professionalTitle: z.string().trim().min(1, "Professional title is required."),
     bio: z
         .string()
         .trim()
         .refine((value) => value.length === 0 || value.length >= 20, {
-            message: "bio must be at least 20 characters long.",
+            message: "Bio must be at least 20 characters long.",
         }),
     hourlyRate: z.coerce
         .number({
-            error: "hourlyRate must be a non-negative number.",
+            error: "Hourly rate must be a valid number.",
         })
-        .refine((value) => Number.isFinite(value) && value >= 0, {
-            message: "hourlyRate must be a non-negative number.",
+        .refine((value) => Number.isFinite(value) && value > 0, {
+            message: "Hourly rate must be greater than 0.",
         }),
     experienceYears: z.coerce
         .number({
-            error: "experienceYears must be a non-negative number.",
+            error: "Experience years must be a valid number.",
         })
         .refine((value) => Number.isFinite(value) && value >= 0, {
-            message: "experienceYears must be a non-negative number.",
+            message: "Experience years cannot be negative.",
         }),
-    categoryIds: z.array(z.string().trim().min(1, "categoryIds must be an array.")),
+    categoryIds: z
+        .array(z.string().trim().min(1, "Each selected category must be valid."))
+        .min(1, "At least one category is required."),
     subjectIds: z
         .array(z.string().trim().min(1, "Each selected subject must be valid."))
         .min(1, "At least one subject is required."),

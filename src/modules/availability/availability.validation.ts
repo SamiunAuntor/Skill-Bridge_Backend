@@ -7,7 +7,7 @@ const isoDateTimeField = (fieldName: string) =>
         if (Number.isNaN(parsed.getTime())) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: `${fieldName} must be a valid ISO date-time.`,
+                message: `${fieldName} must be a valid date and time.`,
             });
             return z.NEVER;
         }
@@ -16,12 +16,12 @@ const isoDateTimeField = (fieldName: string) =>
     });
 
 export const availabilitySlotSchema = z.object({
-    startAt: isoDateTimeField("startAt"),
-    endAt: isoDateTimeField("endAt"),
+    startAt: isoDateTimeField("Start time"),
+    endAt: isoDateTimeField("End time"),
 });
 
 export const slotIdParamsSchema = z.object({
-    slotId: z.string().trim().min(1, "slotId is required."),
+    slotId: z.string().trim().min(1, "Availability slot is required."),
 });
 
 export const tutorAvailabilityParamsSchema = z.object({
