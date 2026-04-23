@@ -109,6 +109,9 @@ export async function getAdminDashboardData(): Promise<AdminDashboardResponse> {
         totalCategories,
         totalSubjects,
         totalDegrees,
+        activeCategories,
+        activeSubjects,
+        activeDegrees,
         bannedUsers,
         studentRegistrations,
         tutorRegistrations,
@@ -143,6 +146,9 @@ export async function getAdminDashboardData(): Promise<AdminDashboardResponse> {
         prisma.category.count(),
         prisma.subject.count(),
         prisma.degree.count(),
+        prisma.category.count({ where: { isActive: true } }),
+        prisma.subject.count({ where: { isActive: true } }),
+        prisma.degree.count({ where: { isActive: true } }),
         prisma.user.count({
             where: {
                 deletedAt: null,
@@ -207,6 +213,12 @@ export async function getAdminDashboardData(): Promise<AdminDashboardResponse> {
             totalCategories,
             totalSubjects,
             totalDegrees,
+            activeCategories,
+            inactiveCategories: Math.max(totalCategories - activeCategories, 0),
+            activeSubjects,
+            inactiveSubjects: Math.max(totalSubjects - activeSubjects, 0),
+            activeDegrees,
+            inactiveDegrees: Math.max(totalDegrees - activeDegrees, 0),
             bannedUsers,
         },
         charts: {

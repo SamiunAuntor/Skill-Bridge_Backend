@@ -3,6 +3,7 @@ import { asyncHandler } from "../../shared/controller/async-handler";
 import { requireAuthUser, sendSuccess } from "../../shared/controller/controller.utils";
 import { validateRequest } from "../../shared/validation/validate-request";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
+import { HttpError } from "../../utils/http-error";
 import {
     changePassword,
     getCurrentSession,
@@ -44,6 +45,11 @@ export const loginController = asyncHandler(
 export const getCurrentSessionController = asyncHandler(
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         const result = await getCurrentSession(req, res);
+
+        if (!result) {
+            throw new HttpError(401, "Please sign in to continue.");
+        }
+
         sendSuccess(res, "Auth session fetched successfully.", result);
     }
 );
