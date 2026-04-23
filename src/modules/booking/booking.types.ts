@@ -1,28 +1,3 @@
-export interface CreateBookingInput {
-    tutorId: string;
-    slotId: string;
-}
-
-export interface BookingConfirmationResponse {
-    booking: {
-        id: string;
-        sessionId: string;
-        tutorId: string;
-        slotId: string;
-        sessionDate: string;
-        startTime: string;
-        endTime: string;
-        priceAtBooking: number;
-        status: "confirmed";
-        paymentStatus: "paid";
-        sessionStatus: "scheduled";
-        meetingProvider: string | null;
-        meetingId: string | null;
-        meetingJoinUrl: string | null;
-        meetingPassword: string | null;
-    };
-}
-
 export interface SessionListItem {
     bookingId: string;
     sessionId: string;

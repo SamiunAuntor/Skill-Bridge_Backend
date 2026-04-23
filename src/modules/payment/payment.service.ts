@@ -1,9 +1,6 @@
 import Stripe from "stripe";
 import {
     BookingStatus,
-    NotificationChannel,
-    NotificationStatus,
-    NotificationType,
     PaymentIntentStatus,
     PaymentStatus,
     Role,
@@ -13,7 +10,7 @@ import { prisma } from "../../config/prisma.config";
 import { env } from "../../config/env";
 import { getStripeClient, getStripeWebhookSecret } from "../../lib/stripe";
 import { createZoomMeeting } from "../../services/zoom/zoom.service";
-import { formatDateTime, formatMoney, toDisplayName } from "../../shared/utils";
+import { formatMoney, toDisplayName } from "../../shared/utils";
 import { HttpError } from "../../utils/http-error";
 import { syncTutorProfileStats } from "../tutor/tutor.services";
 import {
@@ -26,6 +23,8 @@ import {
     DEFAULT_MINIMUM_PAYMENT_AMOUNT_IN_CENTS,
     DEFAULT_PAYMENT_CURRENCY,
 } from "./payment.constants";
+import { expirePendingBookingHoldById } from "./payment-maintenance.service";
+import { createPaymentBookingNotifications } from "./payment-notification.service";
 
 function calculatePrice(hourlyRate: number, startAt: Date, endAt: Date): number {
     const durationHours = (endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60);
@@ -543,121 +542,6 @@ async function ensurePaymentIntentForBooking(
     };
 }
 
-async function createBookingNotifications(
-    bookingId: string,
-    student: {
-        id: string;
-        email: string;
-        name: string;
-        firstName: string | null;
-        lastName: string | null;
-    },
-    tutorUser: {
-        id: string;
-        email: string;
-        name: string;
-        firstName: string | null;
-        lastName: string | null;
-    },
-    startTime: Date,
-    endTime: Date,
-    amountLabel: string
-): Promise<void> {
-    const now = new Date();
-    const studentDisplayName = toDisplayName(student);
-    const tutorDisplayName = toDisplayName(tutorUser);
-    const sessionLabel = `${formatDateTime(startTime)} - ${formatDateTime(endTime)}`;
-    const reminderAt =
-        startTime.getTime() - now.getTime() <= 15 * 60 * 1000
-            ? now
-            : new Date(startTime.getTime() - 15 * 60 * 1000);
-
-    await prisma.notification.createMany({
-        data: [
-            {
-                userId: student.id,
-                bookingId,
-                type: NotificationType.booking_confirmed,
-                channel: NotificationChannel.in_app,
-                title: "Booking confirmed",
-                message: `Your session with ${tutorDisplayName} is confirmed for ${sessionLabel}.`,
-                status: NotificationStatus.pending,
-                scheduledFor: now,
-            },
-            {
-                userId: tutorUser.id,
-                bookingId,
-                type: NotificationType.booking_confirmed,
-                channel: NotificationChannel.in_app,
-                title: "New booking received",
-                message: `${studentDisplayName} booked a session for ${sessionLabel}.`,
-                status: NotificationStatus.pending,
-                scheduledFor: now,
-            },
-            {
-                userId: student.id,
-                bookingId,
-                type: NotificationType.booking_confirmed,
-                channel: NotificationChannel.email,
-                title: "Booking confirmed",
-                message: `Your session with ${tutorDisplayName} is confirmed for ${sessionLabel}. Amount: ${amountLabel}.`,
-                status: NotificationStatus.pending,
-                scheduledFor: now,
-            },
-            {
-                userId: tutorUser.id,
-                bookingId,
-                type: NotificationType.booking_confirmed,
-                channel: NotificationChannel.email,
-                title: "New booking received",
-                message: `${studentDisplayName} booked a session for ${sessionLabel}. Amount: ${amountLabel}.`,
-                status: NotificationStatus.pending,
-                scheduledFor: now,
-            },
-            {
-                userId: student.id,
-                bookingId,
-                type: NotificationType.session_reminder,
-                channel: NotificationChannel.in_app,
-                title: "15 minutes left for your session",
-                message: `Your session with ${tutorDisplayName} starts in 15 minutes.`,
-                status: NotificationStatus.pending,
-                scheduledFor: reminderAt,
-            },
-            {
-                userId: tutorUser.id,
-                bookingId,
-                type: NotificationType.session_reminder,
-                channel: NotificationChannel.in_app,
-                title: "15 minutes left for your session",
-                message: `Your session with ${studentDisplayName} starts in 15 minutes.`,
-                status: NotificationStatus.pending,
-                scheduledFor: reminderAt,
-            },
-            {
-                userId: student.id,
-                bookingId,
-                type: NotificationType.session_reminder,
-                channel: NotificationChannel.email,
-                title: "15 minutes left for your session",
-                message: `Your session with ${tutorDisplayName} starts in 15 minutes.`,
-                status: NotificationStatus.pending,
-                scheduledFor: reminderAt,
-            },
-            {
-                userId: tutorUser.id,
-                bookingId,
-                type: NotificationType.session_reminder,
-                channel: NotificationChannel.email,
-                title: "15 minutes left for your session",
-                message: `Your session with ${studentDisplayName} starts in 15 minutes.`,
-                status: NotificationStatus.pending,
-                scheduledFor: reminderAt,
-            },
-        ],
-    });
-}
-
 async function confirmBookingAfterSuccessfulPayment(
     paymentIntent: Stripe.PaymentIntent
 ): Promise<void> {
@@ -753,7 +637,7 @@ async function confirmBookingAfterSuccessfulPayment(
             },
         });
 
-        await createBookingNotifications(
+        await createPaymentBookingNotifications(
             payment.booking.id,
             payment.booking.student,
             payment.booking.tutor.user,
@@ -875,6 +759,30 @@ export async function getPaymentStatusForStudent(
     role: "student" | "tutor" | "admin",
     paymentIntentId: string
 ): Promise<PaymentStatusResponse> {
+    const paymentForExpiryCheck = await prisma.payment.findUnique({
+        where: { stripePaymentIntentId: paymentIntentId },
+        select: {
+            bookingId: true,
+            booking: {
+                select: {
+                    studentId: true,
+                    status: true,
+                    holdExpiresAt: true,
+                },
+            },
+        },
+    });
+
+    if (!paymentForExpiryCheck) {
+        throw new HttpError(404, "Payment not found.");
+    }
+
+    if (role !== Role.admin && paymentForExpiryCheck.booking.studentId !== userId) {
+        throw new HttpError(403, "You are not allowed to view this payment.");
+    }
+
+    await expirePendingBookingHoldById(paymentForExpiryCheck.bookingId);
+
     const payment = await prisma.payment.findUnique({
         where: { stripePaymentIntentId: paymentIntentId },
         include: {
@@ -907,6 +815,7 @@ export async function getPaymentStatusForStudent(
         holdExpiresAt: payment.booking.holdExpiresAt?.toISOString() ?? null,
     };
 }
+
 
 export async function handleStripeWebhookEvent(
     signature: string | string[] | undefined,

@@ -1,6 +1,7 @@
 import app from "./app";
 import { env } from "./config/env";
 import { startNotificationCron } from "./jobs/notification.cron";
+import { startPaymentCron } from "./jobs/payment.cron";
 import { isMailConfigured } from "./services/email";
 
 app.listen(env.PORT, () => {
@@ -18,4 +19,7 @@ app.listen(env.PORT, () => {
 
     startNotificationCron();
     console.log("[notification-cron] worker started.");
+
+    startPaymentCron();
+    console.log("[payment-cron] worker started.");
 });

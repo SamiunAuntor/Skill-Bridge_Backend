@@ -5,14 +5,12 @@ import { requireAuthUser, sendSuccess } from "../../shared/controller/controller
 import { validateRequest } from "../../shared/validation/validate-request";
 import {
     cancelBooking,
-    createBooking,
     getMySessions,
     getTutorDashboardSummary,
     joinSession,
 } from "./booking.services";
 import {
     bookingIdParamsSchema,
-    createBookingSchema,
     sessionListQuerySchema,
 } from "./booking.validation";
 
@@ -20,10 +18,10 @@ export const createBookingController = asyncHandler(async (
     req: AuthenticatedRequest,
     res: Response
 ): Promise<void> => {
-    const authUser = requireAuthUser(req);
-    const { tutorId, slotId } = validateRequest(createBookingSchema, req.body);
-    const result = await createBooking(authUser.id, { tutorId, slotId });
-    sendSuccess(res, "Booking created successfully.", result, 201);
+    res.status(410).json({
+        success: false,
+        message: "Bookings must be completed through secure payment checkout.",
+    });
 });
 
 export const getMySessionsController = asyncHandler(async (
