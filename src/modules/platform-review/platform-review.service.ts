@@ -5,6 +5,7 @@ import { HttpError } from "../../utils/http-error";
 import type {
     PlatformReviewListItem,
     PlatformReviewSubmitInput,
+    PlatformReviewSubmitResponse,
     PlatformReviewsResponse,
 } from "./platform-review.types";
 
@@ -68,7 +69,7 @@ export async function getVisiblePlatformReviews(
 export async function submitPlatformReview(
     userId: string,
     input: PlatformReviewSubmitInput
-): Promise<{ review: PlatformReviewListItem }> {
+): Promise<PlatformReviewSubmitResponse> {
     const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -82,20 +83,41 @@ export async function submitPlatformReview(
         throw new HttpError(403, "Your account cannot submit platform reviews.");
     }
 
-    const review = await prisma.platformReview.create({
-        data: {
+    const existingReview = await prisma.platformReview.findFirst({
+        where: {
             userId,
-            rating: input.rating,
-            title: input.title?.trim() || null,
-            message: input.message.trim(),
-            status: PlatformReviewStatus.visible,
+            deletedAt: null,
         },
-        include: {
-            user: true,
-        },
+        select: { id: true },
     });
+
+    const reviewPayload = {
+        rating: input.rating,
+        title: input.title?.trim() || null,
+        message: input.message.trim(),
+        status: PlatformReviewStatus.visible,
+    };
+
+    const review = existingReview
+        ? await prisma.platformReview.update({
+              where: { id: existingReview.id },
+              data: reviewPayload,
+              include: {
+                  user: true,
+              },
+          })
+        : await prisma.platformReview.create({
+              data: {
+                  userId,
+                  ...reviewPayload,
+              },
+              include: {
+                  user: true,
+              },
+          });
 
     return {
         review: mapPlatformReview(review),
+        action: existingReview ? "updated" : "created",
     };
 }

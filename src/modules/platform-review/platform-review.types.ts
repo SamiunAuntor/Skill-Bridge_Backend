@@ -23,3 +23,10 @@ export interface PlatformReviewListItem {
 export interface PlatformReviewsResponse {
     reviews: PlatformReviewListItem[];
 }
+
+export type PlatformReviewSubmitAction = "created" | "updated";
+
+export interface PlatformReviewSubmitResponse {
+    review: PlatformReviewListItem;
+    action: PlatformReviewSubmitAction;
+}

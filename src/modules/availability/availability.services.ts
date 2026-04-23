@@ -7,6 +7,9 @@ import {
     UpdateAvailabilityInput,
 } from "./availability.types";
 
+const MIN_SLOT_DURATION_MINUTES = 5;
+const MAX_SLOT_DURATION_MINUTES = 180;
+
 function toSlotDto(input: {
     id: string;
     tutorId: string;
@@ -71,6 +74,21 @@ async function assertNoOverlappingAvailability(
     }
 }
 
+function assertValidSlotDuration(startAt: Date, endAt: Date): void {
+    const durationMinutes = (endAt.getTime() - startAt.getTime()) / (1000 * 60);
+
+    if (durationMinutes < MIN_SLOT_DURATION_MINUTES) {
+        throw new HttpError(
+            400,
+            `Availability must be at least ${MIN_SLOT_DURATION_MINUTES} minutes long.`
+        );
+    }
+
+    if (durationMinutes > MAX_SLOT_DURATION_MINUTES) {
+        throw new HttpError(400, "Availability cannot be longer than 3 hours.");
+    }
+}
+
 export async function getMyAvailability(userId: string): Promise<AvailabilityListResponse> {
     const tutorId = await getTutorProfileIdByUserId(userId);
     const now = new Date();
@@ -108,6 +126,8 @@ export async function createAvailabilitySlot(
         throw new HttpError(400, "startAt must be earlier than endAt.");
     }
 
+    assertValidSlotDuration(input.startAt, input.endAt);
+
     await assertNoOverlappingAvailability(tutorId, input.startAt, input.endAt);
 
     const slot = await prisma.availabilitySlot.create({
@@ -136,6 +156,8 @@ export async function updateAvailabilitySlot(
     if (input.startAt >= input.endAt) {
         throw new HttpError(400, "startAt must be earlier than endAt.");
     }
+
+    assertValidSlotDuration(input.startAt, input.endAt);
 
     const slot = await prisma.availabilitySlot.findFirst({
         where: {

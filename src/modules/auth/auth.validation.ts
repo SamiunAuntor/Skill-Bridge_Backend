@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { USER_ROLES } from "./auth.constants";
+import { PUBLIC_REGISTER_ROLES } from "./auth.constants";
 
 export const loginSchema = z.object({
     email: z.string().trim().email().transform((value) => value.toLowerCase()),
@@ -14,7 +14,9 @@ export const registerSchema = z.object({
         .string()
         .min(8, "Password must be at least 8 characters long.")
         .max(128, "Password is too long."),
-    role: z.enum(USER_ROLES),
+    role: z.enum(PUBLIC_REGISTER_ROLES, {
+        error: "Please choose either student or tutor.",
+    }),
     callbackURL: z.string().trim().url().optional(),
 });
 

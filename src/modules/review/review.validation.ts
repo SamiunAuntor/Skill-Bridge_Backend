@@ -9,5 +9,10 @@ export const createReviewSchema = z.object({
         .int("Rating must be a whole number between 1 and 5.")
         .min(1, "Rating must be a whole number between 1 and 5.")
         .max(5, "Rating must be a whole number between 1 and 5."),
-    comment: z.string().trim().min(1).optional(),
+    comment: z
+        .string()
+        .trim()
+        .min(1, "Review comment is required.")
+        .max(1000, "Review comment must be 1000 characters or fewer.")
+        .optional(),
 });

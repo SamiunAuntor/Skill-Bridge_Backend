@@ -29,5 +29,12 @@ export const submitPlatformReviewController = asyncHandler(async (
         ...(parsedPayload.title ? { title: parsedPayload.title } : {}),
     };
     const result = await submitPlatformReview(authUser.id, payload);
-    sendSuccess(res, "Thanks for sharing your feedback.", result, 201);
+    sendSuccess(
+        res,
+        result.action === "updated"
+            ? "Your review has been updated."
+            : "Thanks for sharing your feedback.",
+        result,
+        result.action === "created" ? 201 : 200
+    );
 });
