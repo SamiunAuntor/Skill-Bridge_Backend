@@ -1,5 +1,6 @@
 export interface PublicLandingResponse {
     stats: {
+        activeStudents: number;
         activeSubjects: number;
         expertTutors: number;
         sessionsBooked: number;

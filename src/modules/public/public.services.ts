@@ -18,6 +18,7 @@ function toProfessionalTitle(value: unknown): string {
 
 export async function getLandingData(): Promise<PublicLandingResponse> {
     const [
+        activeStudents,
         activeSubjects,
         expertTutors,
         sessionsBooked,
@@ -26,6 +27,13 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
         subjects,
         platformReviews,
     ] = await Promise.all([
+        prisma.user.count({
+            where: {
+                deletedAt: null,
+                isBanned: false,
+                role: "student",
+            },
+        }),
         prisma.subject.count({
             where: {
                 isActive: true,
@@ -73,7 +81,7 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
                 { totalReviews: "desc" },
                 { totalHoursTaught: "desc" },
             ],
-            take: 3,
+            take: 5,
             include: {
                 user: true,
                 subjects: {
@@ -133,6 +141,7 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
 
     return {
         stats: {
+            activeStudents,
             activeSubjects,
             expertTutors,
             sessionsBooked,
