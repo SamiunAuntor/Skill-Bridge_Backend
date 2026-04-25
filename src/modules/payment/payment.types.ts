@@ -2,6 +2,7 @@ import type { PaymentIntentStatus } from "../../generated/prisma/client";
 
 export interface CreatePaymentIntentInput {
     tutorId: string;
+    subjectId: string;
     slotId: string;
 }
 
@@ -32,4 +33,3 @@ export interface PaymentStatusResponse {
     failedAt: string | null;
     holdExpiresAt: string | null;
 }
-

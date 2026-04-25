@@ -100,8 +100,8 @@ model User {
   deletedAt DateTime?
 
   tutorProfile      TutorProfile?
-  bookings          Booking[]      @relation("StudentBookings")
-  cancelledBookings Booking[]      @relation("BookingCancelledBy")
+  bookings          Booking[]        @relation("StudentBookings")
+  cancelledBookings Booking[]        @relation("BookingCancelledBy")
   reviews           Review[]
   platformReviews   PlatformReview[]
   notifications     Notification[]
@@ -119,9 +119,9 @@ model TutorProfile {
   userId String @unique
 
   professionalTitle String @default("")
-  bio             String @default("")
-  hourlyRate      Float  @default(0)
-  experienceYears Int    @default(0)
+  bio               String @default("")
+  hourlyRate        Float  @default(0)
+  experienceYears   Int    @default(0)
 
   totalHoursTaught Float @default(0)
   totalEarnings    Float @default(0)
@@ -184,12 +184,12 @@ model TutorCategory {
 model TutorEducation {
   id String @id @default(uuid())
 
-  tutorId   String
-  degreeId  String
-  institution  String
-  startYear    Int
-  endYear      Int?
-  description  String?
+  tutorId     String
+  degreeId    String
+  institution String
+  startYear   Int
+  endYear     Int?
+  description String?
 
   tutor        TutorProfile @relation(fields: [tutorId], references: [id])
   degreeOption Degree       @relation(fields: [degreeId], references: [id])
@@ -207,8 +207,9 @@ model Subject {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  category Category @relation(fields: [categoryId], references: [id])
+  category Category       @relation(fields: [categoryId], references: [id])
   tutors   TutorSubject[]
+  bookings Booking[]
 
   @@unique([categoryId, name])
   @@index([categoryId, isActive])
@@ -228,15 +229,15 @@ model TutorSubject {
 }
 
 model Degree {
-  id        String   @id @default(uuid())
+  id         String   @id @default(uuid())
   categoryId String
-  name      String   @unique
-  level     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  name       String   @unique
+  level      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  category Category        @relation(fields: [categoryId], references: [id])
+  category   Category         @relation(fields: [categoryId], references: [id])
   educations TutorEducation[]
 
   @@index([categoryId, isActive])
@@ -274,9 +275,10 @@ model Booking {
 
   studentId String
   tutorId   String
-  slotId    String @unique
+  subjectId String?
+  slotId    String  @unique
 
-  status BookingStatus
+  status        BookingStatus
   holdExpiresAt DateTime?
 
   sessionDate DateTime
@@ -301,6 +303,7 @@ model Booking {
 
   student     User             @relation("StudentBookings", fields: [studentId], references: [id])
   tutor       TutorProfile     @relation(fields: [tutorId], references: [id])
+  subject     Subject?         @relation(fields: [subjectId], references: [id])
   slot        AvailabilitySlot @relation(fields: [slotId], references: [id])
   cancelledBy User?            @relation("BookingCancelledBy", fields: [cancelledByUserId], references: [id])
 
@@ -317,6 +320,7 @@ model Booking {
   @@index([holdExpiresAt])
   @@index([studentId, status])
   @@index([tutorId, status])
+  @@index([subjectId])
 }
 
 model Payment {
@@ -324,7 +328,7 @@ model Payment {
 
   bookingId String @unique
 
-  stripePaymentIntentId String @unique
+  stripePaymentIntentId String              @unique
   stripeCustomerId      String?
   amountInCents         Int
   currency              String              @default("usd")

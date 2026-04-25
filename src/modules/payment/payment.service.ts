@@ -144,7 +144,7 @@ async function expirePendingBookingIfNeeded(slotId: string, now: Date): Promise<
 }
 
 async function ensureBookableContext(studentId: string, input: CreatePaymentIntentInput) {
-    const [student, tutor] = await Promise.all([
+    const [student, tutor, subject] = await Promise.all([
         prisma.user.findUnique({
             where: { id: studentId },
             select: {
@@ -182,6 +182,21 @@ async function ensureBookableContext(studentId: string, input: CreatePaymentInte
                 },
             },
         }),
+        prisma.subject.findFirst({
+            where: {
+                id: input.subjectId,
+                isActive: true,
+                tutors: {
+                    some: {
+                        tutorId: input.tutorId,
+                    },
+                },
+            },
+            select: {
+                id: true,
+                name: true,
+            },
+        }),
     ]);
 
     if (!student || student.deletedAt || student.isBanned) {
@@ -196,11 +211,18 @@ async function ensureBookableContext(studentId: string, input: CreatePaymentInte
         throw new HttpError(404, "Tutor not found.");
     }
 
+    if (!subject) {
+        throw new HttpError(
+            400,
+            "Please choose an active tutoring subject offered by this tutor."
+        );
+    }
+
     if (studentId === tutor.user.id) {
         throw new HttpError(400, "Tutors cannot book their own slots.");
     }
 
-    return { student, tutor };
+    return { student, tutor, subject };
 }
 
 async function createPendingBookingHold(
@@ -224,6 +246,7 @@ async function createPendingBookingHold(
             id: true,
             studentId: true,
             tutorId: true,
+            subjectId: true,
             status: true,
             holdExpiresAt: true,
             priceAtBooking: true,
@@ -245,6 +268,7 @@ async function createPendingBookingHold(
         existingBooking &&
         existingBooking.status === BookingStatus.pending_payment &&
         existingBooking.studentId === studentId &&
+        existingBooking.subjectId === input.subjectId &&
         existingBooking.holdExpiresAt &&
         existingBooking.holdExpiresAt > now &&
         existingBooking.payment
@@ -330,6 +354,7 @@ async function createPendingBookingHold(
                   data: {
                       studentId,
                       tutorId: context.tutor.id,
+                      subjectId: context.subject.id,
                       status: BookingStatus.pending_payment,
                       holdExpiresAt,
                       sessionDate: slot.startAt,
@@ -358,6 +383,7 @@ async function createPendingBookingHold(
                   data: {
                       studentId,
                       tutorId: context.tutor.id,
+                      subjectId: context.subject.id,
                       slotId: slot.id,
                       status: BookingStatus.pending_payment,
                       holdExpiresAt,
@@ -450,6 +476,7 @@ async function ensurePaymentIntentForBooking(
             metadata: {
                 bookingId: hold.bookingId,
                 tutorId: context.tutor.id,
+                subjectId: context.subject.id,
                 slotId: input.slotId,
                 studentId,
             },

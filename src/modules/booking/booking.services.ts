@@ -43,6 +43,13 @@ function mapSessionListItem(input: {
     sessionDate: Date;
     startTime: Date;
     endTime: Date;
+    subject: {
+        id: string | null;
+        name: string;
+        category: {
+            name: string;
+        } | null;
+    } | null;
     priceAtBooking: number;
     meetingProvider: string | null;
     meetingId: string | null;
@@ -79,6 +86,11 @@ function mapSessionListItem(input: {
         sessionDate: input.sessionDate.toISOString(),
         startTime: input.startTime.toISOString(),
         endTime: input.endTime.toISOString(),
+        subject: {
+            id: input.subject?.id ?? null,
+            name: input.subject?.name ?? "General tutoring",
+            categoryName: input.subject?.category?.name ?? null,
+        },
         priceAtBooking: input.priceAtBooking,
         canCancel:
             input.bookingStatus === BookingStatus.confirmed &&
@@ -135,6 +147,17 @@ export async function getMySessions(
             startTime: true,
             endTime: true,
             priceAtBooking: true,
+            subject: {
+                select: {
+                    id: true,
+                    name: true,
+                    category: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                },
+            },
             student: {
                 select: {
                     id: true,
@@ -223,6 +246,7 @@ export async function getMySessions(
                     sessionDate: item.sessionDate,
                     startTime: item.startTime,
                     endTime: item.endTime,
+                    subject: item.subject,
                     priceAtBooking: item.priceAtBooking,
                     meetingProvider: item.session.meetingProvider,
                     meetingId: item.session.meetingId,
@@ -314,6 +338,17 @@ export async function getTutorDashboardSummary(
                 startTime: true,
                 endTime: true,
                 priceAtBooking: true,
+                subject: {
+                    select: {
+                        id: true,
+                        name: true,
+                        category: {
+                            select: {
+                                name: true,
+                            },
+                        },
+                    },
+                },
                 student: {
                     select: {
                         id: true,
@@ -391,6 +426,7 @@ export async function getTutorDashboardSummary(
                     sessionDate: item.sessionDate,
                     startTime: item.startTime,
                     endTime: item.endTime,
+                    subject: item.subject,
                     priceAtBooking: item.priceAtBooking,
                     meetingProvider: item.session.meetingProvider,
                     meetingId: item.session.meetingId,

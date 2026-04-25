@@ -18,9 +18,10 @@ export const createPaymentIntentController = asyncHandler(async (
     res: Response
 ): Promise<void> => {
     const authUser = requireAuthUser(req);
-    const { tutorId, slotId } = validateRequest(createPaymentIntentSchema, req.body);
+    const { tutorId, subjectId, slotId } = validateRequest(createPaymentIntentSchema, req.body);
     const result = await createPaymentIntentForBooking(authUser.id, {
         tutorId,
+        subjectId,
         slotId,
     });
     sendSuccess(res, "Payment intent created successfully.", result, 201);

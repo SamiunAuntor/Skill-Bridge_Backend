@@ -12,6 +12,11 @@ export interface SessionListItem {
     sessionDate: string;
     startTime: string;
     endTime: string;
+    subject: {
+        id: string | null;
+        name: string;
+        categoryName: string | null;
+    };
     priceAtBooking: number;
     canCancel: boolean;
     canJoin: boolean;
