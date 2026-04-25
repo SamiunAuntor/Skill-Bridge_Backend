@@ -45,10 +45,24 @@ async function assertNoOverlappingAvailability(
     endAt: Date,
     excludeSlotId?: string
 ): Promise<void> {
+    const now = new Date();
+
     const overlappingSlot = await prisma.availabilitySlot.findFirst({
         where: {
             tutorId,
             deletedAt: null,
+            AND: [
+                {
+                    startAt: {
+                        gt: now,
+                    },
+                },
+                {
+                    endAt: {
+                        gt: startAt,
+                    },
+                },
+            ],
             ...(excludeSlotId
                 ? {
                       id: {
@@ -58,9 +72,6 @@ async function assertNoOverlappingAvailability(
                 : {}),
             startAt: {
                 lt: endAt,
-            },
-            endAt: {
-                gt: startAt,
             },
         },
         select: { id: true },
@@ -97,17 +108,21 @@ export async function getMyAvailability(userId: string): Promise<AvailabilityLis
         where: {
             tutorId,
             deletedAt: null,
-            startAt: {
-                gte: now,
-            },
         },
         orderBy: {
-            startAt: "asc",
+            startAt: "desc",
         },
     });
 
     return {
-        slots: slots.map(toSlotDto),
+        upcomingSlots: slots
+            .filter((slot) => slot.startAt > now)
+            .sort((left, right) => left.startAt.getTime() - right.startAt.getTime())
+            .map(toSlotDto),
+        expiredSlots: slots
+            .filter((slot) => slot.startAt <= now)
+            .sort((left, right) => right.startAt.getTime() - left.startAt.getTime())
+            .map(toSlotDto),
     };
 }
 
@@ -270,7 +285,7 @@ export async function getPublicTutorAvailability(
             deletedAt: null,
             isBooked: false,
             startAt: {
-                gte: now,
+                gt: now,
             },
         },
         orderBy: {
@@ -280,6 +295,7 @@ export async function getPublicTutorAvailability(
     });
 
     return {
-        slots: slots.map(toSlotDto),
+        upcomingSlots: slots.map(toSlotDto),
+        expiredSlots: [],
     };
 }

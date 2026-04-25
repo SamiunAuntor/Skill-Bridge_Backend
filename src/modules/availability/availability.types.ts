@@ -17,5 +17,6 @@ export interface UpdateAvailabilityInput {
 }
 
 export interface AvailabilityListResponse {
-    slots: AvailabilitySlotDto[];
+    upcomingSlots: AvailabilitySlotDto[];
+    expiredSlots: AvailabilitySlotDto[];
 }
