@@ -4,6 +4,7 @@ import { asyncHandler } from "../../shared/controller/async-handler";
 import { requireAuthUser, sendSuccess } from "../../shared/controller/controller.utils";
 import { validateRequest } from "../../shared/validation/validate-request";
 import {
+    getTutorCategoryOptions,
     getMyTutorProfile,
     getTutorById,
     getTutorSubjectOptions,
@@ -22,6 +23,8 @@ export const listTutorsController = asyncHandler(async (
 ): Promise<void> => {
     const query = validateRequest(tutorListQuerySchema, req.query);
     const filters = {
+        ...(query.q ? { q: query.q } : {}),
+        ...(query.category ? { category: query.category } : {}),
         ...(query.subject ? { subject: query.subject } : {}),
         ...(typeof query.minPrice === "number" ? { minPrice: query.minPrice } : {}),
         ...(typeof query.maxPrice === "number" ? { maxPrice: query.maxPrice } : {}),
@@ -52,6 +55,14 @@ export const listTutorSubjectOptionsController = asyncHandler(async (
 ): Promise<void> => {
     const result = await getTutorSubjectOptions();
     sendSuccess(res, "Tutor subject options fetched successfully.", result);
+});
+
+export const listTutorCategoryOptionsController = asyncHandler(async (
+    _req: Request,
+    res: Response
+): Promise<void> => {
+    const result = await getTutorCategoryOptions();
+    sendSuccess(res, "Tutor category options fetched successfully.", result);
 });
 
 export const getMyTutorProfileController = asyncHandler(async (

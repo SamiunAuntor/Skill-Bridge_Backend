@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../shared/controller/async-handler";
 import { sendSuccess } from "../../shared/controller/controller.utils";
+import { validateRequest } from "../../shared/validation/validate-request";
 import { getLandingData, getPublicSubjectBySlug, getPublicSubjects } from "./public.services";
+import { publicSubjectsQuerySchema } from "./public.validation";
 
 export const getLandingDataController = asyncHandler(async (
     _req: Request,
@@ -12,10 +14,14 @@ export const getLandingDataController = asyncHandler(async (
 });
 
 export const getPublicSubjectsController = asyncHandler(async (
-    _req: Request,
+    req: Request,
     res: Response
 ): Promise<void> => {
-    const data = await getPublicSubjects();
+    const query = validateRequest(publicSubjectsQuerySchema, req.query);
+    const data = await getPublicSubjects({
+        ...(query.q ? { q: query.q } : {}),
+        sortBy: query.sortBy,
+    });
     sendSuccess(res, "Subjects fetched successfully.", data);
 });
 

@@ -7,6 +7,7 @@ import {
     tutorQueryDefaults,
 } from "./tutor.query";
 import {
+    TutorCategoryOption,
     TutorDetailResponse,
     TutorEditableProfileResponse,
     TutorListQuery,
@@ -34,6 +35,7 @@ function mapTutorSubject(item: {
         name: string;
         slug: string;
         categoryId: string;
+        iconUrl?: string | null;
         category: {
             name: string;
         };
@@ -45,6 +47,7 @@ function mapTutorSubject(item: {
         slug: item.subject.slug,
         categoryId: item.subject.categoryId,
         categoryName: item.subject.category.name,
+        iconUrl: item.subject.iconUrl ?? null,
     };
 }
 
@@ -849,6 +852,18 @@ export async function getTutorSubjectOptions(): Promise<TutorSubjectOption[]> {
                 some: {
                     tutor: {
                         deletedAt: null,
+                        professionalTitle: {
+                            not: "",
+                        },
+                        bio: {
+                            not: "",
+                        },
+                        hourlyRate: {
+                            gt: 0,
+                        },
+                        categories: {
+                            some: {},
+                        },
                         user: {
                             deletedAt: null,
                             isBanned: false,
@@ -872,6 +887,45 @@ export async function getTutorSubjectOptions(): Promise<TutorSubjectOption[]> {
         categoryId: subject.categoryId,
         categoryName: subject.category.name,
         description: subject.description ?? null,
+    }));
+}
+
+export async function getTutorCategoryOptions(): Promise<TutorCategoryOption[]> {
+    const categories = await prisma.category.findMany({
+        where: {
+            isActive: true,
+            tutors: {
+                some: {
+                    tutor: {
+                        deletedAt: null,
+                        professionalTitle: {
+                            not: "",
+                        },
+                        bio: {
+                            not: "",
+                        },
+                        hourlyRate: {
+                            gt: 0,
+                        },
+                        categories: {
+                            some: {},
+                        },
+                        user: {
+                            deletedAt: null,
+                            isBanned: false,
+                            role: "tutor",
+                        },
+                    },
+                },
+            },
+        },
+        orderBy: [{ name: "asc" }],
+    });
+
+    return categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
     }));
 }
 

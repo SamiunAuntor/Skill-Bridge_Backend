@@ -10,6 +10,8 @@ export const tutorSortOptions = [
 export type TutorSortOption = (typeof tutorSortOptions)[number];
 
 export interface TutorListQuery {
+    q?: string;
+    category?: string;
     subject?: string;
     minPrice?: number;
     maxPrice?: number;
@@ -88,6 +90,7 @@ export interface TutorDetailResponse {
             slug: string;
             categoryId: string;
             categoryName: string;
+            iconUrl: string | null;
         }>;
         education: Array<{
             id: string;
@@ -189,6 +192,12 @@ export interface TutorSubjectOption {
     categoryId: string;
     categoryName: string;
     description: string | null;
+}
+
+export interface TutorCategoryOption {
+    id: string;
+    name: string;
+    slug: string;
 }
 
 export interface TutorProfileUpdateSubjectInput {

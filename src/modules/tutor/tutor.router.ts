@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireRole } from "../../middlewares/auth.middleware";
 import {
     getMyTutorProfileController,
+    listTutorCategoryOptionsController,
     getTutorDetailsController,
     listTutorSubjectOptionsController,
     listTutorsController,
@@ -22,6 +23,7 @@ tutorRouter.put(
     requireRole("tutor"),
     updateMyTutorProfileController
 );
+tutorRouter.get("/categories", listTutorCategoryOptionsController);
 tutorRouter.get("/subjects", listTutorSubjectOptionsController);
 tutorRouter.get("/", listTutorsController);
 tutorRouter.get("/:id", getTutorDetailsController);

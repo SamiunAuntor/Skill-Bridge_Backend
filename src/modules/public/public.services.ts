@@ -5,6 +5,7 @@ import { HttpError } from "../../utils/http-error";
 import {
     PublicLandingResponse,
     PublicSubjectDetailResponse,
+    PublicSubjectsQuery,
     PublicSubjectsResponse,
 } from "./public.types";
 
@@ -45,6 +46,21 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
         prisma.tutorProfile.count({
             where: {
                 deletedAt: null,
+                professionalTitle: {
+                    not: "",
+                },
+                bio: {
+                    not: "",
+                },
+                hourlyRate: {
+                    gt: 0,
+                },
+                categories: {
+                    some: {},
+                },
+                subjects: {
+                    some: {},
+                },
                 user: {
                     deletedAt: null,
                     isBanned: false,
@@ -69,6 +85,21 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
         prisma.tutorProfile.findMany({
             where: {
                 deletedAt: null,
+                professionalTitle: {
+                    not: "",
+                },
+                bio: {
+                    not: "",
+                },
+                hourlyRate: {
+                    gt: 0,
+                },
+                categories: {
+                    some: {},
+                },
+                subjects: {
+                    some: {},
+                },
                 user: {
                     deletedAt: null,
                     isBanned: false,
@@ -86,20 +117,27 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
                 user: true,
                 subjects: {
                     include: {
-                        subject: true,
+                        subject: {
+                            include: {
+                                category: true,
+                            },
+                        },
                     },
                     orderBy: {
                         subject: {
                             name: "asc",
                         },
                     },
-                    take: 1,
                 },
                 categories: {
                     include: {
                         category: true,
                     },
-                    take: 1,
+                    orderBy: {
+                        category: {
+                            name: "asc",
+                        },
+                    },
                 },
             },
         }),
@@ -156,10 +194,19 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
             hourlyRate: tutor.hourlyRate,
             averageRating: tutor.averageRating,
             totalReviews: tutor.totalReviews,
-            primarySubject:
-                tutor.subjects[0]?.subject.name ??
-                tutor.categories[0]?.category.name ??
-                "General Tutoring",
+            isTopRated: tutor.isTopRated,
+            categories: tutor.categories.map(({ category }) => ({
+                id: category.id,
+                name: category.name,
+                slug: category.slug,
+            })),
+            subjects: tutor.subjects.map(({ subject }) => ({
+                id: subject.id,
+                name: subject.name,
+                slug: subject.slug,
+                categoryId: subject.categoryId,
+                categoryName: subject.category.name,
+            })),
         })),
         subjects: subjects.map((subject) => ({
             id: subject.id,
@@ -184,29 +231,80 @@ export async function getLandingData(): Promise<PublicLandingResponse> {
     };
 }
 
-export async function getPublicSubjects(): Promise<PublicSubjectsResponse> {
+export async function getPublicSubjects(
+    filters: PublicSubjectsQuery
+): Promise<PublicSubjectsResponse> {
     const subjects = await prisma.subject.findMany({
         where: {
             isActive: true,
             category: {
                 isActive: true,
             },
+            ...(filters.q
+                ? {
+                      OR: [
+                          {
+                              name: {
+                                  contains: filters.q,
+                                  mode: "insensitive",
+                              },
+                          },
+                          {
+                              description: {
+                                  contains: filters.q,
+                                  mode: "insensitive",
+                              },
+                          },
+                          {
+                              category: {
+                                  name: {
+                                      contains: filters.q,
+                                      mode: "insensitive",
+                                  },
+                              },
+                          },
+                      ],
+                  }
+                : {}),
         },
         include: {
             category: true,
-            _count: {
+            tutors: {
+                where: {
+                    tutor: {
+                        deletedAt: null,
+                        professionalTitle: {
+                            not: "",
+                        },
+                        bio: {
+                            not: "",
+                        },
+                        hourlyRate: {
+                            gt: 0,
+                        },
+                        categories: {
+                            some: {},
+                        },
+                        user: {
+                            deletedAt: null,
+                            isBanned: false,
+                            role: "tutor",
+                        },
+                    },
+                },
                 select: {
-                    tutors: true,
+                    tutorId: true,
                 },
             },
         },
-        orderBy: [
-            { category: { name: "asc" } },
-            { name: "asc" },
-        ],
+        orderBy:
+            filters.sortBy === "alphabetical"
+                ? [{ category: { name: "asc" } }, { name: "asc" }]
+                : [{ tutors: { _count: "desc" } }, { name: "asc" }],
     });
 
     return {
+        filters,
         subjects: subjects.map((subject) => ({
             id: subject.id,
             name: subject.name,
@@ -218,7 +316,7 @@ export async function getPublicSubjects(): Promise<PublicSubjectsResponse> {
                 name: subject.category.name,
                 slug: subject.category.slug,
             },
-            tutorCount: subject._count.tutors,
+            tutorCount: subject.tutors.length,
         })),
     };
 }
@@ -240,6 +338,18 @@ export async function getPublicSubjectBySlug(
                 where: {
                     tutor: {
                         deletedAt: null,
+                        professionalTitle: {
+                            not: "",
+                        },
+                        bio: {
+                            not: "",
+                        },
+                        hourlyRate: {
+                            gt: 0,
+                        },
+                        categories: {
+                            some: {},
+                        },
                         user: {
                             deletedAt: null,
                             isBanned: false,

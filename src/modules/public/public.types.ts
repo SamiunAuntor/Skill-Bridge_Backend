@@ -1,3 +1,12 @@
+import { publicSubjectSortOptions } from "./public.validation";
+
+export type PublicSubjectSortOption = (typeof publicSubjectSortOptions)[number];
+
+export interface PublicSubjectsQuery {
+    q?: string;
+    sortBy: PublicSubjectSortOption;
+}
+
 export interface PublicLandingResponse {
     stats: {
         activeStudents: number;
@@ -15,7 +24,19 @@ export interface PublicLandingResponse {
         hourlyRate: number;
         averageRating: number;
         totalReviews: number;
-        primarySubject: string;
+        isTopRated: boolean;
+        categories: Array<{
+            id: string;
+            name: string;
+            slug: string;
+        }>;
+        subjects: Array<{
+            id: string;
+            name: string;
+            slug: string;
+            categoryId: string;
+            categoryName: string;
+        }>;
     }>;
     subjects: Array<{
         id: string;
@@ -40,6 +61,7 @@ export interface PublicLandingResponse {
 }
 
 export interface PublicSubjectsResponse {
+    filters: PublicSubjectsQuery;
     subjects: Array<{
         id: string;
         name: string;

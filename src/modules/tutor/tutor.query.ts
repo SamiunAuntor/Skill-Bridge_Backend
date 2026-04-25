@@ -33,6 +33,21 @@ function getTutorOrderBy(
 function createTutorBaseWhereClause(): Prisma.TutorProfileWhereInput {
     return {
         deletedAt: null,
+        professionalTitle: {
+            not: "",
+        },
+        bio: {
+            not: "",
+        },
+        hourlyRate: {
+            gt: 0,
+        },
+        categories: {
+            some: {},
+        },
+        subjects: {
+            some: {},
+        },
         user: {
             isBanned: false,
             deletedAt: null,
@@ -49,12 +64,89 @@ function createTutorSubjectFilter(
     }
 
     return {
+        subjects: {
+            some: {
+                subject: {
+                    slug: subject,
+                },
+            },
+        },
+    };
+}
+
+function createTutorCategoryFilter(
+    category: string | undefined
+): Prisma.TutorProfileWhereInput | null {
+    if (!category) {
+        return null;
+    }
+
+    return {
+        categories: {
+            some: {
+                category: {
+                    slug: category,
+                },
+            },
+        },
+    };
+}
+
+function createTutorSearchFilter(
+    q: string | undefined
+): Prisma.TutorProfileWhereInput | null {
+    const normalizedQuery = q?.trim();
+
+    if (!normalizedQuery) {
+        return null;
+    }
+
+    return {
         OR: [
+            {
+                professionalTitle: {
+                    contains: normalizedQuery,
+                    mode: "insensitive",
+                },
+            },
+            {
+                bio: {
+                    contains: normalizedQuery,
+                    mode: "insensitive",
+                },
+            },
+            {
+                user: {
+                    OR: [
+                        {
+                            name: {
+                                contains: normalizedQuery,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            firstName: {
+                                contains: normalizedQuery,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            lastName: {
+                                contains: normalizedQuery,
+                                mode: "insensitive",
+                            },
+                        },
+                    ],
+                },
+            },
             {
                 categories: {
                     some: {
                         category: {
-                            slug: subject,
+                            name: {
+                                contains: normalizedQuery,
+                                mode: "insensitive",
+                            },
                         },
                     },
                 },
@@ -63,7 +155,10 @@ function createTutorSubjectFilter(
                 subjects: {
                     some: {
                         subject: {
-                            slug: subject,
+                            name: {
+                                contains: normalizedQuery,
+                                mode: "insensitive",
+                            },
                         },
                     },
                 },
@@ -134,6 +229,8 @@ export function buildTutorListPrismaQuery(filters: TutorListQuery) {
         Prisma.TutorProfileWhereInput,
         Prisma.TutorProfileOrderByWithRelationInput
     >(createTutorBaseWhereClause())
+        .filter(createTutorSearchFilter(filters.q))
+        .filter(createTutorCategoryFilter(filters.category))
         .filter(createTutorSubjectFilter(filters.subject))
         .filter(createTutorPriceFilter(filters))
         .filter(createTutorRatingFilter(filters.minRating))

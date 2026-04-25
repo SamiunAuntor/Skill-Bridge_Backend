@@ -116,6 +116,18 @@ const optionalNullableHttpsUrl = z
 
 export const tutorListQuerySchema = z
     .object({
+        q: z
+            .string()
+            .trim()
+            .min(1)
+            .optional()
+            .transform((value) => value?.trim() || undefined),
+        category: z
+            .string()
+            .trim()
+            .min(1)
+            .optional()
+            .transform((value) => value?.toLowerCase()),
         subject: z
             .string()
             .trim()
