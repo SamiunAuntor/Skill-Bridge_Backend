@@ -262,32 +262,6 @@ export async function getTutorDashboardSummary(
             id: true,
             averageRating: true,
             totalReviews: true,
-            reviews: {
-                where: {
-                    deletedAt: null,
-                    isVisible: true,
-                },
-                orderBy: {
-                    createdAt: "desc",
-                },
-                take: 3,
-                select: {
-                    id: true,
-                    rating: true,
-                    comment: true,
-                    createdAt: true,
-                    student: {
-                        select: {
-                            id: true,
-                            name: true,
-                            firstName: true,
-                            lastName: true,
-                            email: true,
-                            image: true,
-                        },
-                    },
-                },
-            },
         },
     });
 
@@ -426,17 +400,6 @@ export async function getTutorDashboardSummary(
                     tutor: item.tutor,
                 })
             ),
-        recentFeedback: tutorProfile.reviews.map((review) => ({
-            id: review.id,
-            rating: review.rating,
-            comment: review.comment,
-            createdAt: review.createdAt.toISOString(),
-            student: {
-                id: review.student.id,
-                name: normalizeDisplayName(review.student),
-                avatarUrl: review.student.image ?? null,
-            },
-        })),
     };
 }
 

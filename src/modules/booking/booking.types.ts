@@ -77,17 +77,6 @@ export interface TutorDashboardSummaryResponse {
         totalReviews: number;
     };
     upcomingSessions: SessionListItem[];
-    recentFeedback: Array<{
-        id: string;
-        rating: number;
-        comment: string | null;
-        createdAt: string;
-        student: {
-            id: string;
-            name: string;
-            avatarUrl: string | null;
-        };
-    }>;
 }
 
 export interface CancelBookingResponse {
