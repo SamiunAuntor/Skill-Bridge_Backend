@@ -9,6 +9,7 @@ import { prisma } from "../../config/prisma.config";
 import { sendMail } from "../../services/email";
 import { formatDateTime, formatMoney, toDisplayName } from "../../shared/utils";
 import { syncTutorProfileStats } from "../tutor/tutor.services";
+import { HttpError } from "../../utils/http-error";
 import {
     escapeHtml,
     renderEmailDetailRows,
@@ -195,6 +196,194 @@ function buildNotificationEmail(notification: {
                 detailRows: commonRows,
             });
     }
+}
+
+export type NotificationFeedItem = {
+    id: string;
+    bookingId: string | null;
+    type: NotificationType;
+    title: string;
+    message: string;
+    isRead: boolean;
+    createdAt: string;
+    readAt: string | null;
+};
+
+type NotificationFeedStatus = "all" | "unread";
+
+function buildVisibleNotificationWhere(userId: string, status: NotificationFeedStatus) {
+    const now = new Date();
+
+    return {
+        userId,
+        channel: NotificationChannel.in_app,
+        OR: [
+            { status: NotificationStatus.sent },
+            {
+                status: NotificationStatus.pending,
+                OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
+            },
+        ],
+        ...(status === "unread" ? { readAt: null } : {}),
+    };
+}
+
+function mapNotificationFeedItem(notification: {
+    id: string;
+    bookingId: string | null;
+    type: NotificationType;
+    title: string;
+    message: string;
+    createdAt: Date;
+    readAt: Date | null;
+}): NotificationFeedItem {
+    return {
+        id: notification.id,
+        bookingId: notification.bookingId,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        isRead: Boolean(notification.readAt),
+        createdAt: notification.createdAt.toISOString(),
+        readAt: notification.readAt?.toISOString() ?? null,
+    };
+}
+
+export async function getMyNotifications(
+    userId: string,
+    params: {
+        page: number;
+        limit: number;
+        status: NotificationFeedStatus;
+    }
+): Promise<{
+    notifications: NotificationFeedItem[];
+    page: number;
+    limit: number;
+    total: number;
+    unreadCount: number;
+    hasMore: boolean;
+}> {
+    const where = buildVisibleNotificationWhere(userId, params.status);
+    const skip = (params.page - 1) * params.limit;
+
+    const [notifications, total, unreadCount] = await Promise.all([
+        prisma.notification.findMany({
+            where,
+            orderBy: [{ createdAt: "desc" }],
+            skip,
+            take: params.limit,
+            select: {
+                id: true,
+                bookingId: true,
+                type: true,
+                title: true,
+                message: true,
+                createdAt: true,
+                readAt: true,
+            },
+        }),
+        prisma.notification.count({ where }),
+        prisma.notification.count({
+            where: {
+                ...buildVisibleNotificationWhere(userId, "all"),
+                readAt: null,
+            },
+        }),
+    ]);
+
+    return {
+        notifications: notifications.map(mapNotificationFeedItem),
+        page: params.page,
+        limit: params.limit,
+        total,
+        unreadCount,
+        hasMore: skip + notifications.length < total,
+    };
+}
+
+export async function getMyUnreadNotificationCount(
+    userId: string
+): Promise<{ unreadCount: number }> {
+    const unreadCount = await prisma.notification.count({
+        where: {
+            ...buildVisibleNotificationWhere(userId, "all"),
+            readAt: null,
+        },
+    });
+
+    return { unreadCount };
+}
+
+export async function markMyNotificationAsRead(
+    userId: string,
+    notificationId: string
+): Promise<{ notification: NotificationFeedItem }> {
+    if (!notificationId) {
+        throw new HttpError(400, "Notification id is required.");
+    }
+
+    const existing = await prisma.notification.findFirst({
+        where: {
+            id: notificationId,
+            userId,
+            channel: NotificationChannel.in_app,
+        },
+        select: {
+            id: true,
+            bookingId: true,
+            type: true,
+            title: true,
+            message: true,
+            createdAt: true,
+            readAt: true,
+        },
+    });
+
+    if (!existing) {
+        throw new HttpError(404, "Notification not found.");
+    }
+
+    const notification =
+        existing.readAt !== null
+            ? existing
+            : await prisma.notification.update({
+                  where: { id: notificationId },
+                  data: {
+                      readAt: new Date(),
+                  },
+                  select: {
+                      id: true,
+                      bookingId: true,
+                      type: true,
+                      title: true,
+                      message: true,
+                      createdAt: true,
+                      readAt: true,
+                  },
+              });
+
+    return {
+        notification: mapNotificationFeedItem(notification),
+    };
+}
+
+export async function markAllMyNotificationsAsRead(
+    userId: string
+): Promise<{ updatedCount: number }> {
+    const result = await prisma.notification.updateMany({
+        where: {
+            ...buildVisibleNotificationWhere(userId, "all"),
+            readAt: null,
+        },
+        data: {
+            readAt: new Date(),
+        },
+    });
+
+    return {
+        updatedCount: result.count,
+    };
 }
 
 export async function processPendingNotifications(): Promise<number> {
