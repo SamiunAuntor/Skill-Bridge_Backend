@@ -21,6 +21,20 @@ function requireEnv(name: string, fallback?: string): string {
     return value;
 }
 
+function normalizeMailService(value: string | undefined): "smtp" | "resend" {
+    const normalized = value?.trim().toLowerCase();
+
+    if (normalized === "resend") {
+        return "resend";
+    }
+
+    if (normalized === "nodemailer" || normalized === "smtp" || !normalized) {
+        return "smtp";
+    }
+
+    return "smtp";
+}
+
 /**
  * Nodemailer / SMTP — set these in `.env` to send verification & password-reset mail.
  * See `.env.example` for common providers (Gmail, SendGrid, Mailtrap).
@@ -47,6 +61,31 @@ export function isSmtpConfigured(): boolean {
     if (!hasAuth) return false;
     if (smtp.service) return true;
     return Boolean(smtp.host);
+}
+
+export const mail = {
+    service: normalizeMailService(process.env.MAIL_SERVICE),
+    resendApiKey: process.env.RESEND_API_KEY?.trim() || undefined,
+    resendFrom:
+        process.env.RESEND_FROM?.trim() ||
+        process.env.EMAIL_FROM?.trim() ||
+        undefined,
+    resendReplyTo:
+        process.env.RESEND_REPLY_TO?.trim() ||
+        process.env.EMAIL_REPLY_TO?.trim() ||
+        undefined,
+};
+
+export function isResendConfigured(): boolean {
+    return Boolean(mail.resendApiKey && mail.resendFrom);
+}
+
+export function isMailConfigured(): boolean {
+    if (mail.service === "resend") {
+        return isResendConfigured();
+    }
+
+    return isSmtpConfigured();
 }
 
 export const env = {
@@ -86,4 +125,8 @@ export const env = {
         process.env.STRIPE_PUBLISHABLE_KEY?.trim() || undefined,
     PAYMENT_CURRENCY:
         process.env.PAYMENT_CURRENCY?.trim().toLowerCase() || "usd",
+    MAIL_SERVICE: mail.service,
+    RESEND_API_KEY: mail.resendApiKey,
+    RESEND_FROM: mail.resendFrom,
+    RESEND_REPLY_TO: mail.resendReplyTo,
 };

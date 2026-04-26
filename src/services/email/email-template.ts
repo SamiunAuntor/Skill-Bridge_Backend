@@ -31,13 +31,13 @@ export function renderEmailDetailRows(
         .map(
             (row) => `
                 <tr>
-                  <td style="padding:12px 0 12px 0;vertical-align:top;border-bottom:1px solid ${borderColor};width:38%;">
-                    <div style="font-size:12px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:${mutedText};">
+                  <td style="padding:10px 0 10px 0;vertical-align:top;border-bottom:1px solid ${borderColor};width:38%;">
+                    <div style="font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:${mutedText};">
                       ${escapeHtml(row.label)}
                     </div>
                   </td>
-                  <td style="padding:12px 0 12px 18px;vertical-align:top;border-bottom:1px solid ${borderColor};">
-                    <div style="font-size:16px;line-height:1.55;color:${primaryText};font-weight:700;">
+                  <td style="padding:10px 0 10px 14px;vertical-align:top;border-bottom:1px solid ${borderColor};">
+                    <div style="font-size:14px;line-height:1.5;color:${primaryText};font-weight:700;">
                       ${escapeHtml(row.value)}
                     </div>
                   </td>
@@ -47,7 +47,7 @@ export function renderEmailDetailRows(
         .join("");
 
     return `
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid ${borderColor};border-radius:18px;overflow:hidden;background:${surfaceBg};">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid ${borderColor};border-radius:16px;overflow:hidden;background:${surfaceBg};">
         <tbody>${content}</tbody>
       </table>
     `;
@@ -65,13 +65,13 @@ export function renderEmailLayout(params: {
     footerNote?: string;
 }) {
     const greetingHtml = params.greeting
-        ? `<p style="margin:0 0 14px 0;font-size:16px;line-height:1.65;color:${primaryText};">${params.greeting}</p>`
+        ? `<p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:${primaryText};">${params.greeting}</p>`
         : "";
 
     const bodyHtml = (params.bodyBlocks ?? [])
         .map(
             (block) => `
-              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.75;color:${secondaryText};">
+              <p style="margin:0 0 14px 0;font-size:14px;line-height:1.68;color:${secondaryText};">
                 ${block}
               </p>
             `
@@ -79,18 +79,18 @@ export function renderEmailLayout(params: {
         .join("");
 
     const detailsHtml = params.detailRowsHtml
-        ? `<div style="margin-top:24px;">${params.detailRowsHtml}</div>`
+        ? `<div style="margin-top:20px;">${params.detailRowsHtml}</div>`
         : "";
 
     const ctaHtml =
         params.ctaLabel && params.ctaUrl
             ? `
               <div style="margin-top:28px;">
-                <a href="${escapeHtml(params.ctaUrl)}" style="display:inline-block;background:${buttonBg};color:${buttonText};text-decoration:none;font-weight:800;font-size:15px;padding:14px 22px;border-radius:14px;">
+                <a href="${escapeHtml(params.ctaUrl)}" style="display:inline-block;background:${buttonBg};color:${buttonText};text-decoration:none;font-weight:800;font-size:14px;padding:12px 18px;border-radius:12px;">
                   ${escapeHtml(params.ctaLabel)}
                 </a>
               </div>
-              <p style="margin:16px 0 0 0;font-size:12px;line-height:1.65;color:${mutedText};word-break:break-word;">
+              <p style="margin:14px 0 0 0;font-size:11px;line-height:1.55;color:${mutedText};word-break:break-word;">
                 If the button does not work, copy and paste this link into your browser:<br>
                 <a href="${escapeHtml(params.ctaUrl)}" style="color:${linkColor};text-decoration:none;">${escapeHtml(params.ctaUrl)}</a>
               </p>
@@ -99,8 +99,8 @@ export function renderEmailLayout(params: {
 
     const footerHtml = params.footerNote
         ? `
-          <div style="margin-top:28px;padding-top:18px;border-top:1px solid ${borderColor};">
-            <p style="margin:0;font-size:12px;line-height:1.65;color:${mutedText};">
+          <div style="margin-top:24px;padding-top:16px;border-top:1px solid ${borderColor};">
+            <p style="margin:0;font-size:11px;line-height:1.55;color:${mutedText};">
               ${params.footerNote}
             </p>
           </div>
@@ -118,27 +118,27 @@ export function renderEmailLayout(params: {
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">
     ${escapeHtml(params.preheader)}
   </div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${pageBg};padding:28px 16px;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${pageBg};padding:24px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:${cardBg};border-radius:28px;overflow:hidden;border:1px solid rgba(21,48,81,0.08);box-shadow:0 18px 48px rgba(21,48,81,0.08);">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:${cardBg};border-radius:24px;overflow:hidden;border:1px solid rgba(21,48,81,0.08);box-shadow:0 14px 36px rgba(21,48,81,0.08);">
           <tr>
-            <td style="padding:28px 32px;background:linear-gradient(180deg, ${headerBg} 0%, ${headerAccent} 100%);">
-              <div style="font-size:12px;font-weight:800;letter-spacing:0.28em;text-transform:uppercase;color:rgba(255,255,255,0.78);">
+            <td style="padding:22px 26px;background:linear-gradient(180deg, ${headerBg} 0%, ${headerAccent} 100%);">
+              <div style="font-size:11px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.78);">
                 ${escapeHtml(params.preheader)}
               </div>
-              <div style="margin-top:14px;font-size:18px;font-weight:800;letter-spacing:0.02em;color:#ffffff;">
+              <div style="margin-top:12px;font-size:16px;font-weight:800;letter-spacing:0.02em;color:#ffffff;">
                 ${escapeHtml(brandName)}
               </div>
-              <h1 style="margin:18px 0 0 0;font-size:48px;line-height:1.04;font-weight:900;letter-spacing:-0.04em;color:#ffffff;">
+              <h1 style="margin:14px 0 0 0;font-size:34px;line-height:1.08;font-weight:900;letter-spacing:-0.035em;color:#ffffff;">
                 ${escapeHtml(params.title)}
               </h1>
             </td>
           </tr>
           <tr>
-            <td style="padding:32px;">
+            <td style="padding:26px;">
               ${greetingHtml}
-              <p style="margin:0 0 18px 0;font-size:17px;line-height:1.8;color:${secondaryText};">
+              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.68;color:${secondaryText};">
                 ${params.intro}
               </p>
               ${bodyHtml}

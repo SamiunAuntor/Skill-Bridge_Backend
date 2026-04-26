@@ -1,5 +1,6 @@
-import { isSmtpConfigured } from "../../config/env";
+import { isMailConfigured, mail } from "../../config/env";
 import { createSmtpTransport, getDefaultFromAddress } from "./create-smtp-transport";
+import { sendViaResend } from "./send-via-resend";
 import type { SendEmailPayload } from "./types";
 
 function formatDevLog(payload: SendEmailPayload): string {
@@ -13,6 +14,11 @@ function formatDevLog(payload: SendEmailPayload): string {
  * or warns in production. Use for any feature (auth, notifications, reports).
  */
 export async function sendMail(payload: SendEmailPayload): Promise<void> {
+    if (mail.service === "resend") {
+        await sendViaResend(payload);
+        return;
+    }
+
     const transport = createSmtpTransport();
     const from = payload.from?.trim() || getDefaultFromAddress();
 
@@ -58,4 +64,4 @@ export function sendMailQueued(payload: SendEmailPayload): void {
 }
 
 /** True when env has enough SMTP settings to attempt real delivery. */
-export { isSmtpConfigured as isMailConfigured } from "../../config/env";
+export { isMailConfigured } from "../../config/env";
