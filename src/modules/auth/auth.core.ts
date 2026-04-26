@@ -105,6 +105,7 @@ export const auth = betterAuth({
                     const first = parts[0] ?? "";
                     const last = parts.length > 1 ? parts.slice(1).join(" ") : "";
                     const data = { ...user };
+                    data.emailVerified = true;
                     if (first && data.firstName == null) {
                         data.firstName = first;
                     }

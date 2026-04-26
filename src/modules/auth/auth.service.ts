@@ -222,6 +222,25 @@ export async function register(
     input: RegisterInput,
     req: Request
 ): Promise<{ email: string }> {
+    const existingUser = await prisma.user.findUnique({
+        where: {
+            email: input.email,
+        },
+        select: {
+            id: true,
+            deletedAt: true,
+        },
+    });
+
+    if (existingUser) {
+        throw new HttpError(
+            409,
+            existingUser.deletedAt
+                ? "An account with this email already exists and cannot be registered again."
+                : "An account with this email already exists."
+        );
+    }
+
     try {
         await auth.api.signUpEmail({
             body: {
