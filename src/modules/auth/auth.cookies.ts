@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { env } from "../../config/env";
 
 const isSecureCookie = process.env.NODE_ENV === "production";
+const sameSitePolicy: "lax" | "none" = isSecureCookie ? "none" : "lax";
 const accessTokenMaxAge = 1000 * 60 * 60 * 24;
 const refreshTokenMaxAge = 1000 * 60 * 60 * 24 * 7;
 
@@ -36,7 +37,7 @@ export function setAccessTokenCookie(res: Response, token: string): void {
     res.cookie(env.ACCESS_TOKEN_COOKIE_NAME, token, {
         httpOnly: true,
         secure: isSecureCookie,
-        sameSite: "lax",
+        sameSite: sameSitePolicy,
         path: "/",
         maxAge: accessTokenMaxAge,
     });
@@ -46,7 +47,7 @@ export function setRefreshTokenCookie(res: Response, token: string): void {
     res.cookie(env.REFRESH_TOKEN_COOKIE_NAME, token, {
         httpOnly: true,
         secure: isSecureCookie,
-        sameSite: "lax",
+        sameSite: sameSitePolicy,
         path: "/",
         maxAge: refreshTokenMaxAge,
     });
@@ -56,14 +57,14 @@ export function clearAuthCookies(res: Response): void {
     res.clearCookie(env.ACCESS_TOKEN_COOKIE_NAME, {
         httpOnly: true,
         secure: isSecureCookie,
-        sameSite: "lax",
+        sameSite: sameSitePolicy,
         path: "/",
     });
 
     res.clearCookie(env.REFRESH_TOKEN_COOKIE_NAME, {
         httpOnly: true,
         secure: isSecureCookie,
-        sameSite: "lax",
+        sameSite: sameSitePolicy,
         path: "/",
     });
 }
