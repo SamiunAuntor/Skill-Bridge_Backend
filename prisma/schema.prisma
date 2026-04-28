@@ -92,7 +92,7 @@ model User {
 
   isBanned Boolean @default(false)
 
-  emailVerified Boolean @default(true)
+  emailVerified Boolean @default(false)
   image         String?
 
   createdAt DateTime  @default(now())

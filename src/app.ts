@@ -23,7 +23,7 @@ const app: express.Application = express();
 
 app.use(
     cors({
-        origin: env.FRONTEND_URL ?? true,
+        origin: env.FRONTEND_URL,
         credentials: true,
     })
 );

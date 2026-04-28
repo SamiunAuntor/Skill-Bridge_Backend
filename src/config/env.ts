@@ -3,12 +3,21 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const port = process.env.PORT || "5000";
-const defaultBackendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+const defaultBackendUrl =
+    process.env.NODE_ENV === "production"
+        ? undefined
+        : process.env.BACKEND_URL || `http://localhost:${port}`;
+const defaultFrontendUrl =
+    process.env.NODE_ENV === "production" ? undefined : "http://localhost:3000";
 
 function normalizeBetterAuthUrl(value: string): string {
     return value.replace(/\/$/, "").endsWith("/api/auth/core")
         ? value.replace(/\/$/, "")
         : `${value.replace(/\/$/, "")}/api/auth/core`;
+}
+
+function normalizeOrigin(value: string): string {
+    return value.replace(/\/$/, "");
 }
 
 function requireEnv(name: string, fallback?: string): string {
@@ -91,8 +100,10 @@ export function isMailConfigured(): boolean {
 export const env = {
     PORT: Number(port) || 5000,
     AUTH_SECRET: process.env.AUTH_SECRET,
-    BACKEND_URL: process.env.BACKEND_URL,
-    FRONTEND_URL: process.env.FRONTEND_URL,
+    BACKEND_URL: normalizeOrigin(requireEnv("BACKEND_URL", defaultBackendUrl)),
+    FRONTEND_URL: normalizeOrigin(
+        requireEnv("FRONTEND_URL", defaultFrontendUrl)
+    ),
     DATABASE_URL: process.env.DATABASE_URL,
     BETTER_AUTH_SECRET: requireEnv(
         "BETTER_AUTH_SECRET",
@@ -100,8 +111,9 @@ export const env = {
             ? undefined
             : "dev-only-better-auth-secret-min-32-chars!"
     ),
-    BETTER_AUTH_URL:
-        normalizeBetterAuthUrl(process.env.BETTER_AUTH_URL || defaultBackendUrl),
+    BETTER_AUTH_URL: normalizeBetterAuthUrl(
+        requireEnv("BETTER_AUTH_URL", defaultBackendUrl)
+    ),
     JWT_SECRET: requireEnv(
         "JWT_SECRET",
         process.env.NODE_ENV === "production"
