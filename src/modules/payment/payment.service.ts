@@ -825,6 +825,22 @@ export async function getPaymentStatusForStudent(
         throw new HttpError(403, "You are not allowed to view this payment.");
     }
 
+    let clientSecret: string | null = null;
+
+    if (
+        payment.status !== PaymentIntentStatus.succeeded &&
+        payment.status !== PaymentIntentStatus.cancelled &&
+        payment.booking.status === BookingStatus.pending_payment &&
+        payment.booking.holdExpiresAt &&
+        payment.booking.holdExpiresAt > new Date()
+    ) {
+        const intent = await getStripeClient()
+            .paymentIntents.retrieve(payment.stripePaymentIntentId)
+            .catch(() => null);
+
+        clientSecret = intent?.client_secret ?? null;
+    }
+
     return {
         bookingId: payment.bookingId,
         paymentId: payment.id,
@@ -840,6 +856,7 @@ export async function getPaymentStatusForStudent(
         confirmedAt: payment.confirmedAt?.toISOString() ?? null,
         failedAt: payment.failedAt?.toISOString() ?? null,
         holdExpiresAt: payment.booking.holdExpiresAt?.toISOString() ?? null,
+        clientSecret,
     };
 }
 

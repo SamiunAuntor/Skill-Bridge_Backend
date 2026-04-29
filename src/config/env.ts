@@ -44,6 +44,27 @@ function normalizeMailService(value: string | undefined): "smtp" | "resend" {
     return "smtp";
 }
 
+function normalizeBoolean(
+    value: string | undefined,
+    defaultValue: boolean
+): boolean {
+    const normalized = value?.trim().toLowerCase();
+
+    if (!normalized) {
+        return defaultValue;
+    }
+
+    if (["1", "true", "yes", "on"].includes(normalized)) {
+        return true;
+    }
+
+    if (["0", "false", "no", "off"].includes(normalized)) {
+        return false;
+    }
+
+    return defaultValue;
+}
+
 /**
  * Nodemailer / SMTP — set these in `.env` to send verification & password-reset mail.
  * See `.env.example` for common providers (Gmail, SendGrid, Mailtrap).
@@ -137,6 +158,14 @@ export const env = {
         process.env.STRIPE_PUBLISHABLE_KEY?.trim() || undefined,
     PAYMENT_CURRENCY:
         process.env.PAYMENT_CURRENCY?.trim().toLowerCase() || "usd",
+    ENABLE_PAYMENT_CRON: normalizeBoolean(
+        process.env.ENABLE_PAYMENT_CRON,
+        process.env.NODE_ENV !== "production"
+    ),
+    ENABLE_NOTIFICATION_CRON: normalizeBoolean(
+        process.env.ENABLE_NOTIFICATION_CRON,
+        process.env.NODE_ENV !== "production"
+    ),
     MAIL_SERVICE: mail.service,
     RESEND_API_KEY: mail.resendApiKey,
     RESEND_FROM: mail.resendFrom,

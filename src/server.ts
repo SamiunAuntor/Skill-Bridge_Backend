@@ -17,9 +17,21 @@ app.listen(env.PORT, () => {
         );
     }
 
-    startNotificationCron();
-    console.log("[notification-cron] worker started.");
+    if (env.ENABLE_NOTIFICATION_CRON) {
+        startNotificationCron();
+        console.log("[notification-cron] worker started.");
+    } else {
+        console.warn(
+            "[notification-cron] worker disabled. Set ENABLE_NOTIFICATION_CRON=true on a dedicated always-on runtime."
+        );
+    }
 
-    startPaymentCron();
-    console.log("[payment-cron] worker started.");
+    if (env.ENABLE_PAYMENT_CRON) {
+        startPaymentCron();
+        console.log("[payment-cron] worker started.");
+    } else {
+        console.warn(
+            "[payment-cron] worker disabled. Set ENABLE_PAYMENT_CRON=true on a dedicated always-on runtime."
+        );
+    }
 });
