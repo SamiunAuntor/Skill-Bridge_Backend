@@ -22,6 +22,8 @@ This repository is responsible for:
 
 - **Backend API:** https://skill-bridge-backend-vn0x.onrender.com/
 - **Frontend App:** https://skill-bridge-frontend-sooty.vercel.app/
+- **Backend Repository:** https://github.com/SamiunAuntor/Skill-Bridge_Backend
+- **Frontend Repository:** https://github.com/SamiunAuntor/Skill-Bridge_Frontend
 
 ## ⚙️ Backend at a Glance
 
@@ -984,6 +986,8 @@ This setup is intentionally good for demos and review, but it should be tightene
 |---|---|
 | Backend API | https://skill-bridge-backend-vn0x.onrender.com/ |
 | Frontend App | https://skill-bridge-frontend-sooty.vercel.app/ |
+| Backend Repository | https://github.com/SamiunAuntor/Skill-Bridge_Backend |
+| Frontend Repository | https://github.com/SamiunAuntor/Skill-Bridge_Frontend |
 
 ### Deployment summary
 
