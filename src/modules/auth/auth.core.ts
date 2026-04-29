@@ -105,6 +105,9 @@ export const auth = betterAuth({
                     const first = parts[0] ?? "";
                     const last = parts.length > 1 ? parts.slice(1).join(" ") : "";
                     const data = { ...user };
+                    // Temporary demo bypass: free deployment cannot deliver verification mail yet.
+                    // Remove this once production email delivery is available.
+                    data.emailVerified = true;
                     if (first && data.firstName == null) {
                         data.firstName = first;
                     }
