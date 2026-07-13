@@ -3,6 +3,7 @@ import {
     completeExpiredSessions,
     processPendingNotifications,
 } from "../modules/notification/notification.service";
+import { logger } from "../shared/utils/logger";
 
 export function startNotificationCron(): void {
     let isRunning = false;
@@ -21,12 +22,12 @@ export function startNotificationCron(): void {
             ]);
 
             if (processedNotifications > 0 || completedSessions > 0) {
-                console.log(
+                logger.info(
                     `[notification-cron] notifications=${processedNotifications} completedSessions=${completedSessions}`
                 );
             }
         } catch (error) {
-            console.error("[notification-cron] scheduled job run failed:", error);
+            logger.error("[notification-cron] scheduled job run failed", error);
         } finally {
             isRunning = false;
         }

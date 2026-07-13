@@ -6,6 +6,7 @@ import {
     SessionStatus,
 } from "../../generated/prisma/client";
 import { prisma } from "../../config/prisma.config";
+import { logger } from "../../shared/utils/logger";
 import { sendMail } from "../../services/email";
 import { formatDateTime, formatMoney, toDisplayName } from "../../shared/utils";
 import { syncTutorProfileStats } from "../tutor/tutor.services";
@@ -491,7 +492,7 @@ export async function processPendingNotifications(): Promise<number> {
                 },
             });
 
-            console.error("[notification] failed to process notification:", error);
+            logger.error("[notification] failed to process notification", error);
         }
     }
 

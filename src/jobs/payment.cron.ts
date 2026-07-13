@@ -3,6 +3,7 @@ import {
     cleanupInvalidUnpaidPaymentSessions,
     expireExpiredPaymentHolds,
 } from "../modules/payment/payment-maintenance.service";
+import { logger } from "../shared/utils/logger";
 
 export function startPaymentCron(): void {
     let isRunning = false;
@@ -21,12 +22,12 @@ export function startPaymentCron(): void {
             ]);
 
             if (expiredHolds > 0 || reconciledSessions > 0) {
-                console.log(
+                logger.info(
                     `[payment-cron] expiredHolds=${expiredHolds} reconciledSessions=${reconciledSessions}`
                 );
             }
         } catch (error) {
-            console.error("[payment-cron] scheduled job run failed:", error);
+            logger.error("[payment-cron] scheduled job run failed", error);
         } finally {
             isRunning = false;
         }

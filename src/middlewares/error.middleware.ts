@@ -3,9 +3,10 @@ import { Prisma } from "../generated/prisma/client";
 import { ZodError } from "zod";
 import { HttpError } from "../utils/http-error";
 import { formatZodError } from "../shared/validation/validation-error";
+import { logger } from "../shared/utils/logger";
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error(err);
+    logger.error("Unhandled request error", err);
 
     if (err instanceof ZodError) {
         const formatted = formatZodError(err);

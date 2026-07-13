@@ -1,5 +1,6 @@
 import { env } from "../../config/env";
 import { HttpError } from "../../utils/http-error";
+import { logger } from "../../shared/utils/logger";
 
 type ZoomAccessTokenResponse = {
     access_token: string;
@@ -56,7 +57,7 @@ async function getZoomAccessToken(): Promise<string> {
 
         if (!response.ok) {
             const text = await response.text();
-            console.error("[zoom] access token request failed:", text);
+            logger.error("[zoom] access token request failed", text);
             throw new HttpError(
                 503,
                 "Video meeting setup is currently unavailable. Please try again in a moment."
@@ -70,7 +71,7 @@ async function getZoomAccessToken(): Promise<string> {
             throw error;
         }
 
-        console.error("[zoom] unexpected access token error:", error);
+        logger.error("[zoom] unexpected access token error", error);
         throw new HttpError(
             503,
             "Video meeting setup is currently unavailable. Please try again in a moment."
@@ -118,7 +119,7 @@ export async function createZoomMeeting(input: {
 
         if (!response.ok) {
             const text = await response.text();
-            console.error("[zoom] create meeting failed:", text);
+            logger.error("[zoom] create meeting failed", text);
             throw new HttpError(
                 503,
                 "We couldn't schedule the video meeting right now. Please try booking again."
@@ -128,7 +129,7 @@ export async function createZoomMeeting(input: {
         const payload = (await response.json()) as ZoomMeetingResponse;
 
         if (!payload.join_url) {
-            console.error("[zoom] create meeting response missing join_url:", payload);
+            logger.error("[zoom] create meeting response missing join_url", payload);
             throw new HttpError(
                 503,
                 "We couldn't prepare the session link right now. Please try booking again."
@@ -147,7 +148,7 @@ export async function createZoomMeeting(input: {
             throw error;
         }
 
-        console.error("[zoom] unexpected create meeting error:", error);
+        logger.error("[zoom] unexpected create meeting error", error);
         throw new HttpError(
             503,
             "We couldn't schedule the video meeting right now. Please try booking again."
@@ -176,9 +177,9 @@ export async function deleteZoomMeeting(meetingId: string | null | undefined): P
 
         if (!response.ok) {
             const text = await response.text();
-            console.error("[zoom] delete meeting failed:", text);
+            logger.error("[zoom] delete meeting failed", text);
         }
     } catch (error) {
-        console.error("[zoom] unexpected delete meeting error:", error);
+        logger.error("[zoom] unexpected delete meeting error", error);
     }
 }

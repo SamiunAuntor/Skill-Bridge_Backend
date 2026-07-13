@@ -2,6 +2,7 @@ import { isMailConfigured, mail } from "../../config/env";
 import { createSmtpTransport, getDefaultFromAddress } from "./create-smtp-transport";
 import { sendViaResend } from "./send-via-resend";
 import type { SendEmailPayload } from "./types";
+import { logger } from "../../shared/utils/logger";
 
 function formatDevLog(payload: SendEmailPayload): string {
     const ctx = payload.context ? ` [${payload.context}]` : "";
@@ -37,15 +38,15 @@ export async function sendMail(payload: SendEmailPayload): Promise<void> {
     }
 
     if (process.env.NODE_ENV !== "production") {
-        console.info(formatDevLog(payload));
-        console.info(
+        logger.info(formatDevLog(payload));
+        logger.info(
             "Set SMTP_USER, SMTP_PASS, and SMTP_SERVICE or SMTP_HOST (see .env.example)."
         );
         return;
     }
 
     const to = Array.isArray(payload.to) ? payload.to.join(", ") : payload.to;
-    console.warn(
+    logger.warn(
         `[mail] SMTP not configured; message not sent. context=${payload.context ?? "none"} to=${to} subject=${payload.subject}`
     );
 }
@@ -56,8 +57,8 @@ export async function sendMail(payload: SendEmailPayload): Promise<void> {
  */
 export function sendMailQueued(payload: SendEmailPayload): void {
     void sendMail(payload).catch((err) => {
-        console.error(
-            `[mail] Send failed${payload.context ? ` (${payload.context})` : ""}:`,
+        logger.error(
+            `[mail] Send failed${payload.context ? ` (${payload.context})` : ""}`,
             err
         );
     });
