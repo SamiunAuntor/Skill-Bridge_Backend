@@ -79,6 +79,12 @@ enum PlatformReviewStatus {
   hidden
 }
 
+enum ContactSubmissionStatus {
+  new
+  read
+  resolved
+}
+
 // USER
 
 model User {
@@ -417,6 +423,22 @@ model PlatformReview {
   @@index([userId])
   @@index([status, createdAt])
   @@index([deletedAt])
+}
+
+model ContactSubmission {
+  id String @id @default(uuid())
+
+  name    String
+  email   String
+  subject String
+  message String
+  status  ContactSubmissionStatus @default(new)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email, createdAt])
+  @@index([status, createdAt])
 }
 
 model Notification {

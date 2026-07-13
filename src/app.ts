@@ -18,6 +18,7 @@ import reviewRouter from "./modules/review/review.router";
 import studentRouter from "./modules/student/student.router";
 import tutorRouter from "./modules/tutor/tutor.router";
 import uploadRouter from "./modules/upload/upload.router";
+import { contactAdminRouter, contactPublicRouter } from "./modules/contact/contact.router";
 
 const app: express.Application = express();
 
@@ -40,6 +41,8 @@ app.use(express.json());
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/public", publicRouter);
+app.use("/api/contact", contactPublicRouter);
+app.use("/api/admin/contact-submissions", contactAdminRouter);
 app.use("/api/availability", availabilityRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/payments", paymentRouter);
